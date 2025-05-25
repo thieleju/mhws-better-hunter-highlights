@@ -31,12 +31,22 @@ local DEBUG_MODE = true
 local SESSION_TYPE = { LOBBY = 1, QUEST = 2, LINK = 3 }
 local CONFIG_PATH = "better_hunter_highlights.json"
 
+-- Log debug message
+local function logDebug(message)
+  if DEBUG_MODE then
+    log.debug("[Better Hunter Highlights] " .. message)
+  end
+end
+
+-- Log error message
+local function logError(message)
+  log.debug("[Better Hunter Highlights] ERROR: " .. message)
+end
+
 -- Save config to json file in data directory of reframework
 local function saveConfig()
   json.dump_file(CONFIG_PATH, config)
-  if DEBUG_MODE then
-    log.debug("Config saved to " .. CONFIG_PATH)
-  end
+  logDebug("Config saved to " .. CONFIG_PATH)
 end
 
 -- Load existing config or create default
@@ -54,8 +64,8 @@ end
 -- @return any|nil The result if successful
 local function safeCall(fn)
   local ok, result = pcall(fn)
-  if DEBUG_MODE and not ok then
-    log.debug("ERROR in safeCall: " .. tostring(result))
+  if not ok then
+    logError("n safeCall: " .. tostring(result))
   end
   return ok and result or nil
 end
@@ -131,9 +141,7 @@ local function updateQuestHost()
   local ui = uim:call("getHostUserInfo(app.net_session_manager.SESSION_TYPE)", SESSION_TYPE.QUEST)
   if ui then
     isQuestHost = ui:get_IsSelf()
-    if DEBUG_MODE then
-      log.debug(string.format("Quest Host: %s (IsSelf: %s)", ui:getDispPlName(), tostring(isQuestHost)))
-    end
+    logDebug(string.format("Quest Host: %s (IsSelf: %s)", ui:getDispPlName(), tostring(isQuestHost)))
   end
 end
 
@@ -141,6 +149,10 @@ end
 -- @param args table Hook arguments
 -- @return sdk.PreHookResult|nil
 local function onSyncQuestAwardInfo(args)
+  if not config.enabled then
+    return sdk.PreHookResult.CALL_ORIGINAL
+  end
+
   if not isQuestHost then
     return sdk.PreHookResult.CALL_ORIGINAL
   end
@@ -151,14 +163,14 @@ local function onSyncQuestAwardInfo(args)
     return idx
   end)
   if not userIndex then
-    log.debug("ERROR: Invalid userIndex in syncQuestAwardInfo.")
+    logError("Invalid userIndex in syncQuestAwardInfo.")
     return sdk.PreHookResult.CALL_ORIGINAL
   end
 
   -- the cQuestAwardSync packet itself
   local cQuestAwardSync = safeCall(function() return sdk.to_managed_object(args[4]) end)
   if not cQuestAwardSync then
-    log.debug("ERROR: Invalid cQuestAwardSync in syncQuestAwardInfo.")
+    logError("Invalid cQuestAwardSync in syncQuestAwardInfo.")
     return sdk.PreHookResult.CALL_ORIGINAL
   end
 
@@ -166,31 +178,33 @@ local function onSyncQuestAwardInfo(args)
   local stats = extractAwardStats(cQuestAwardSync)
   playerstats[userIndex] = stats
 
-  if DEBUG_MODE then
-    local statsStr = {}
-    for id, data in pairs(stats) do
-      table.insert(statsStr, string.format("(%d|%d)", id, data.count or 0))
-    end
-    log.debug(string.format("Player [%d] Awards: %s", userIndex, table.concat(statsStr, ", ")))
+  local statsStr = {}
+  for id, data in pairs(stats) do
+    table.insert(statsStr, string.format("(%d|%d)", id, data.count or 0))
   end
+  logDebug(string.format("Player [%d] Awards: %s", userIndex, table.concat(statsStr, ", ")))
 end
 
 --- Handler for host change notification
 -- @param args table Hook arguments
 local function onNotifyHostChange(args)
-  if DEBUG_MODE then
-    log.debug("NotifyHostChangeSession called")
-    log.debug("New Host ID: " .. tostring(sdk.to_int64(args[3])))
+  if not config.enabled then
+    return sdk.PreHookResult.CALL_ORIGINAL
   end
+
+  logDebug("NotifyHostChangeSession called")
+  logDebug("New Host ID: " .. tostring(sdk.to_int64(args[3])))
 end
 
 --- Post-handler to update host flag
 -- @param retval any Return value of original
 -- @return any
 local function onNotifyHostChangePost(retval)
-  if DEBUG_MODE then
-    log.debug("NotifyHostChangeSession post-hook called")
+  if not config.enabled then
+    return sdk.PreHookResult.CALL_ORIGINAL
   end
+
+  logDebug("NotifyHostChangeSession post-hook called")
   updateQuestHost()
   return retval
 end
@@ -198,52 +212,55 @@ end
 --- Handler when entering quest playing state
 -- @param args table Hook arguments
 local function onEnterQuestPlaying()
-  if DEBUG_MODE then
-    log.debug("Quest playing enter() called")
+  if not config.enabled then
+    return sdk.PreHookResult.CALL_ORIGINAL
   end
+
+  logDebug("Quest playing enter() called")
   updateQuestHost()
 end
 
 --- Handler when entering quest reward state
 -- @param args table Hook arguments
 local function onEnterQuestReward(args)
-  if DEBUG_MODE then
-    log.debug("Quest reward enter() called")
+  if not config.enabled then
+    return sdk.PreHookResult.CALL_ORIGINAL
   end
+
+  logDebug("Quest reward enter() called")
+
   -- skip if not quest host
   if not isQuestHost then
-    if DEBUG_MODE then
-      log.debug("Not the quest host, skipping quest reward enter() hook.")
-    end
+    logDebug("Not the quest host, skipping quest reward enter() hook.")
     return sdk.PreHookResult.CALL_ORIGINAL
   end
 
   local networkManagerSingleton = sdk.get_managed_singleton("app.NetworkManager")
   if not networkManagerSingleton then
-    log.debug("ERROR: NetworkManager singleton not found.")
+    logError("NetworkManager singleton not found.")
     return
   end
 
   local userInfoManager = networkManagerSingleton:get_UserInfoManager()
   if not userInfoManager then
-    log.debug("ERROR: UserInfoManager not found in NetworkManager.")
+    logError("UserInfoManager not found in NetworkManager.")
     return
   end
 
   local userInfoList = userInfoManager:getUserInfoList(SESSION_TYPE.QUEST)
   if not userInfoList then
-    log.debug("ERROR: UserInfoList not found in UserInfoManager.")
+    logError("UserInfoList not found in UserInfoManager.")
     return
   end
 
   local memberNum = userInfoManager:getMemberNum(SESSION_TYPE.QUEST)
   if memberNum <= 0 then
-    log.debug("ERROR: No members found in UserInfoList.")
+    logError("No members found in UserInfoList.")
     return
   end
   local userInfoArray = userInfoList._ListInfo
   if not userInfoArray then
-    log.debug("ERROR: UserInfoArray is nil.")
+    logError("UserInfoArray is nil.")
     return
   end
 
@@ -260,32 +277,30 @@ local function onEnterQuestReward(args)
   end
 
   -- Print all player awards
-  if DEBUG_MODE then
-    log.debug(" --- Player Awards ---")
-    for _, data in pairs(userIndexToAwards) do
-      local awardsStr = {}
-      for _, award in pairs(data.awards) do
-        table.insert(awardsStr, string.format("%s: %d", award.name, award.count))
-      end
-      log.debug(string.format("-> %s: %s", data.userName, table.concat(awardsStr, ", ")))
+  logDebug(" --- Player Awards ---")
+  for _, data in pairs(userIndexToAwards) do
+    local awardsStr = {}
+    for _, award in pairs(data.awards) do
+      table.insert(awardsStr, string.format("%s: %d", award.name, award.count))
     end
-    log.debug(" --- Damage to Main Target Large Monster ---")
-    -- sort userIndexToAwards by damage count
-    table.sort(userIndexToAwards, function(a, b)
-      return (a.awards[4] and a.awards[4].count or 0) > (b.awards[4] and b.awards[4].count or 0)
-    end)
-    -- sum up total damage
-    local dmgSum = 0
-    for _, data in ipairs(userIndexToAwards) do
-      local dmg = data.awards[4] and data.awards[4].count or 0
-      dmgSum = dmgSum + dmg
-    end
-    -- print each player's info in order
-    for _, data in ipairs(userIndexToAwards) do
-      local dmg = data.awards[4] and data.awards[4].count or 0
-      local percentage = dmgSum > 0 and (dmg / dmgSum) * 100 or 0
-      log.debug(string.format("-> %s: %d dmg (%.2f%%)", data.userName, dmg, percentage))
-    end
+    logDebug(string.format("-> %s: %s", data.userName, table.concat(awardsStr, ", ")))
+  end
+  logDebug(" --- Damage to Main Target Large Monster ---")
+  -- sort userIndexToAwards by damage count
+  table.sort(userIndexToAwards, function(a, b)
+    return (a.awards[4] and a.awards[4].count or 0) > (b.awards[4] and b.awards[4].count or 0)
+  end)
+  -- sum up total damage
+  local dmgSum = 0
+  for _, data in ipairs(userIndexToAwards) do
+    local dmg = data.awards[4] and data.awards[4].count or 0
+    dmgSum = dmgSum + dmg
+  end
+  -- print each player's info in order
+  for _, data in ipairs(userIndexToAwards) do
+    local dmg = data.awards[4] and data.awards[4].count or 0
+    local percentage = dmgSum > 0 and (dmg / dmgSum) * 100 or 0
+    logDebug(string.format("-> %s: %d dmg (%.2f%%)", data.userName, dmg, percentage))
   end
 end
 
@@ -293,9 +308,8 @@ end
 local function registerHook(method, pre, post)
   if not method then return end
   sdk.hook(method, pre, post)
-  if DEBUG_MODE then
-    log.debug("Hook registered for method: " .. tostring(method:get_name()))
-  end
+
+  logDebug("Hook registered for method: " .. tostring(method:get_name()))
 end
 
 -- Load configuration and add config save listener
@@ -313,15 +327,29 @@ re.on_draw_ui(function()
     if imgui.checkbox("Enable Mod", config.enabled) then
       -- toggle the flag and mark config dirty
       config.enabled = not config.enabled
+      if not config.enabled then
+        DEBUG_MODE = false
+      end
+
+      logDebug("Better Hunter Highlights set enabled to " .. tostring(config.enabled))
     end
 
-    -- optionally show more options only if enabled
-    if config.enabled then
-      imgui.indent(20)
-      imgui.text("Stats will be shown at quest end.")
-      -- here you could add more checkboxes/sliders
-      imgui.unindent(20)
+    -- skip if mod disabled
+    if not config.enabled then
+      imgui.tree_pop()
+      return
     end
+
+    -- checkbox for debug mode
+    if imgui.checkbox("Debug Mode", DEBUG_MODE) then
+      DEBUG_MODE = not DEBUG_MODE
+      logDebug("Debug Mode set to " .. tostring(DEBUG_MODE))
+    end
+
+    imgui.indent(20)
+    imgui.text("Stats will be shown at quest end.")
+    -- here you could add more checkboxes/sliders
+    imgui.unindent(20)
 
     imgui.tree_pop()
   end
@@ -342,7 +370,4 @@ registerHook(enterQuestPlaying, onEnterQuestPlaying, nil)
 -- Called when entering quest reward state, prints stats if host
 registerHook(enterQuestReward, onEnterQuestReward, nil)
 
-
-if DEBUG_MODE then
-  log.debug("Better Hunter Highlights initialized successfully!")
-end
+logDebug("Better Hunter Highlights initialized successfully!")
