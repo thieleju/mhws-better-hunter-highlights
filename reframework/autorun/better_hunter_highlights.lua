@@ -2,28 +2,30 @@
 --
 -- Logs quest award contributions for all players at the end of a quest
 -- Hooks into quest sync and result methods to collect and summarize player awards
--- ONLY WORKS WHEN YOU ARE THE QUEST HOST -> otherwise the userIndex param in syncQuestAwardInfo() is incorrect
 
 -- types
-local cQuestPlayingType = sdk.find_type_definition("app.cQuestPlaying")
 local cQuestRewardType = sdk.find_type_definition("app.cQuestReward")
 local cQuestDirectorType = sdk.find_type_definition("app.cQuestDirector")
 local questDefType = sdk.find_type_definition("app.QuestDef")
 local messageUtilType = sdk.find_type_definition("app.MessageUtil")
+local subMenuType = sdk.find_type_definition("app.cGUISubMenuInfo")
+local guidType = sdk.find_type_definition("System.Guid")
+local guiManagerType = sdk.find_type_definition("app.GUIManager")
 
 -- methods to hook
 local syncQuestAwardInfo = cQuestDirectorType:get_method("syncQuestAwardInfo")
-local notifyHostChangeQuestSession = cQuestDirectorType:get_method("notifyHostChangeQuestSession(System.Int32)")
-local enterQuestPlaying = cQuestPlayingType:get_method("enter()")
 local enterQuestReward = cQuestRewardType:get_method("enter()")
+local guiManagerRequestSubMenu = guiManagerType:get_method("requestSubMenu")
 
 -- utility methods
 local getTextHelper = messageUtilType:get_method("getText(System.Guid, System.Int32)")
 local getAwardNameHelper = questDefType:get_method("Name(app.QuestDef.AwardID)")
 local getAwardExplainHelper = questDefType:get_method("Explain(app.QuestDef.AwardID)")
+local addSubMenuItem = subMenuType:get_method(
+  "addItem(System.String, System.Guid, System.Guid, System.Boolean, System.Boolean, System.Action)")
+local newGuid = guidType:get_method("NewGuid")
 
 -- variables
-local isQuestHost = true
 local playerstats = {}
 local config = { enabled = true }
 
@@ -131,20 +133,6 @@ local function extractAwardStats(packet)
   return stats
 end
 
---- Updates host status by checking NetworkManager singleton
-local function updateQuestHost()
-  local nm = sdk.get_managed_singleton("app.NetworkManager")
-  if not nm then return end
-  local uim = nm:get_UserInfoManager()
-  if not uim then return end
-
-  local ui = uim:call("getHostUserInfo(app.net_session_manager.SESSION_TYPE)", SESSION_TYPE.QUEST)
-  if ui then
-    isQuestHost = ui:get_IsSelf()
-    logDebug(string.format("Quest Host: %s (IsSelf: %s)", ui:getDispPlName(), tostring(isQuestHost)))
-  end
-end
-
 --- Handler for syncQuestAwardInfo hook
 -- @param args table Hook arguments
 -- @return sdk.PreHookResult|nil
@@ -153,9 +141,6 @@ local function onSyncQuestAwardInfo(args)
     return sdk.PreHookResult.CALL_ORIGINAL
   end
 
-  if not isQuestHost then
-    return sdk.PreHookResult.CALL_ORIGINAL
-  end
   -- userIndex of the player who sent the sync packet
   local userIndex = safeCall(function()
     local idx = sdk.to_int64(args[3])
@@ -185,41 +170,6 @@ local function onSyncQuestAwardInfo(args)
   logDebug(string.format("Player [%d] Awards: %s", userIndex, table.concat(statsStr, ", ")))
 end
 
---- Handler for host change notification
--- @param args table Hook arguments
-local function onNotifyHostChange(args)
-  if not config.enabled then
-    return sdk.PreHookResult.CALL_ORIGINAL
-  end
-
-  logDebug("NotifyHostChangeSession called")
-  logDebug("New Host ID: " .. tostring(sdk.to_int64(args[3])))
-end
-
---- Post-handler to update host flag
--- @param retval any Return value of original
--- @return any
-local function onNotifyHostChangePost(retval)
-  if not config.enabled then
-    return sdk.PreHookResult.CALL_ORIGINAL
-  end
-
-  logDebug("NotifyHostChangeSession post-hook called")
-  updateQuestHost()
-  return retval
-end
-
---- Handler when entering quest playing state
--- @param args table Hook arguments
-local function onEnterQuestPlaying()
-  if not config.enabled then
-    return sdk.PreHookResult.CALL_ORIGINAL
-  end
-
-  logDebug("Quest playing enter() called")
-  updateQuestHost()
-end
-
 --- Handler when entering quest reward state
 -- @param args table Hook arguments
 local function onEnterQuestReward(args)
@@ -228,12 +178,6 @@ local function onEnterQuestReward(args)
   end
 
   logDebug("Quest reward enter() called")
-
-  -- skip if not quest host
-  if not isQuestHost then
-    logDebug("Not the quest host, skipping quest reward enter() hook.")
-    return sdk.PreHookResult.CALL_ORIGINAL
-  end
 
   local networkManagerSingleton = sdk.get_managed_singleton("app.NetworkManager")
   if not networkManagerSingleton then
@@ -258,6 +202,7 @@ local function onEnterQuestReward(args)
     logError("No members found in UserInfoList.")
     return
   end
+
   local userInfoArray = userInfoList._ListInfo
   if not userInfoArray then
     logError("UserInfoArray is nil.")
@@ -266,7 +211,6 @@ local function onEnterQuestReward(args)
 
   -- map playerstats to user by index
   local userIndexToAwards = {}
-
   for i = 0, memberNum - 1 do
     userIndexToAwards[i + 1] = { -- stupid 1-based indexing
       userName = userInfoArray[i]:get_PlName(),
@@ -312,13 +256,44 @@ local function registerHook(method, pre, post)
   logDebug("Hook registered for method: " .. tostring(method:get_name()))
 end
 
--- Load configuration and add config save listener
-loadConfig()
+local function onRequestSubMenu(args)
+  if not config.enabled then
+    return sdk.PreHookResult.CALL_ORIGINAL
+  end
 
-re.on_config_save(function()
-  saveConfig()
-  loadConfig()
-end)
+  local owner = sdk.to_managed_object(args[3])
+  local subMenu = sdk.to_managed_object(args[4])
+
+  logDebug("RequestSubMenu called for " .. tostring(owner:get_type_definition():get_full_name()))
+
+  if subMenu == nil then
+    logDebug("requestSubMenu subMenu is nil")
+    return sdk.PreHookResult.CALL_ORIGINAL
+  end
+
+  -- skip all submenus except the one for parts list
+  if owner:get_type_definition():get_full_name() ~= "app.GUI070003PartsList" then
+    return sdk.PreHookResult.CALL_ORIGINAL
+  end
+
+  local item0 = subMenu:getItem(0)
+
+  local executeAction = item0 and item0:get_ExecuteAction()
+  if executeAction == nil then
+    logDebug("No execute action found in item 1 of submenu")
+    return sdk.PreHookResult.CALL_ORIGINAL
+  end
+
+  executeAction:add_ref()
+
+  -- Add custom item to the submenu
+
+  local guid = newGuid:call(nil)
+  local item4Text = "Show Better Hunter Highlights"
+  addSubMenuItem:call(subMenu, item4Text, guid, guid, true, false, executeAction)
+
+  return sdk.PreHookResult.CALL_ORIGINAL
+end
 
 -- Draw REFramework UI
 re.on_draw_ui(function()
@@ -355,19 +330,26 @@ re.on_draw_ui(function()
   end
 end)
 
+-- Load configuration and add config save listener
+
+loadConfig()
+
+re.on_config_save(function()
+  saveConfig()
+  loadConfig()
+end)
 
 -- Game Function Hooks
 
--- Called multiple times per quest, updates playerstats object every time
-registerHook(syncQuestAwardInfo, onSyncQuestAwardInfo, nil)
+if config.enabled then
+  -- Called multiple times per quest, updates playerstats object every time
+  registerHook(syncQuestAwardInfo, onSyncQuestAwardInfo, nil)
 
--- Called when the host changes, updates quest host status
-registerHook(notifyHostChangeQuestSession, onNotifyHostChange, onNotifyHostChangePost)
+  -- Called when entering quest reward state, prints stats if host
+  registerHook(enterQuestReward, onEnterQuestReward, nil)
 
--- Called when entering quest playing state, updates quest host status
-registerHook(enterQuestPlaying, onEnterQuestPlaying, nil)
-
--- Called when entering quest reward state, prints stats if host
-registerHook(enterQuestReward, onEnterQuestReward, nil)
+  -- Called when opening a sub-menu, adds custom items
+  registerHook(guiManagerRequestSubMenu, onRequestSubMenu, nil)
+end
 
 logDebug("Better Hunter Highlights initialized successfully!")
