@@ -25,9 +25,29 @@ local getAwardExplainHelper = questDefType:get_method("Explain(app.QuestDef.Awar
 -- variables
 local isQuestHost = true
 local playerstats = {}
+local config = { enabled = true }
 
 local DEBUG_MODE = true
 local SESSION_TYPE = { LOBBY = 1, QUEST = 2, LINK = 3 }
+local CONFIG_PATH = "better_hunter_highlights.json"
+
+-- Save config to json file in data directory of reframework
+local function saveConfig()
+  json.dump_file(CONFIG_PATH, config)
+  if DEBUG_MODE then
+    log.debug("Config saved to " .. CONFIG_PATH)
+  end
+end
+
+-- Load existing config or create default
+local function loadConfig()
+  local loaded = json.load_file(CONFIG_PATH)
+  if loaded then
+    config = loaded
+  else
+    saveConfig()
+  end
+end
 
 --- Safely call a function and return result or nil
 -- @param fn function The function to call
@@ -278,7 +298,37 @@ local function registerHook(method, pre, post)
   end
 end
 
--- Register hooks
+-- Load configuration and add config save listener
+loadConfig()
+
+re.on_config_save(function()
+  saveConfig()
+  loadConfig()
+end)
+
+-- Draw REFramework UI
+re.on_draw_ui(function()
+  if imgui.tree_node("Better Hunter Highlights") then
+    -- checkbox returns true if clicked
+    if imgui.checkbox("Enable Mod", config.enabled) then
+      -- toggle the flag and mark config dirty
+      config.enabled = not config.enabled
+    end
+
+    -- optionally show more options only if enabled
+    if config.enabled then
+      imgui.indent(20)
+      imgui.text("Stats will be shown at quest end.")
+      -- here you could add more checkboxes/sliders
+      imgui.unindent(20)
+    end
+
+    imgui.tree_pop()
+  end
+end)
+
+
+-- Game Function Hooks
 
 -- Called multiple times per quest, updates playerstats object every time
 registerHook(syncQuestAwardInfo, onSyncQuestAwardInfo, nil)
