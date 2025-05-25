@@ -7,5 +7,6 @@
 !.gitignore
 !README.md
 !LICENSE
+!modinfo.ini
 
 !reframework/autorun/better_hunter_highlights.lua
