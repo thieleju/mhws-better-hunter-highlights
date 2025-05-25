@@ -2,6 +2,8 @@
 --
 -- Logs quest award contributions for all players at the end of a quest
 -- Hooks into quest sync and result methods to collect and summarize player awards
+--
+---@diagnostic disable: undefined-global
 
 -- types
 local cQuestRewardType = sdk.find_type_definition("app.cQuestReward")
@@ -26,16 +28,16 @@ local addSubMenuItem = subMenuType:get_method(
 local newGuid = guidType:get_method("NewGuid")
 
 -- variables
-local playerstats = {}
-local config = { enabled = true }
+local awardStats = {}
+local memberAwardStats = {}
+local config = { enabled = true, debug = false }
 
-local DEBUG_MODE = true
 local SESSION_TYPE = { LOBBY = 1, QUEST = 2, LINK = 3 }
 local CONFIG_PATH = "better_hunter_highlights.json"
 
 -- Log debug message
 local function logDebug(message)
-  if DEBUG_MODE then
+  if config.debug then
     log.debug("[Better Hunter Highlights] " .. message)
   end
 end
@@ -133,6 +135,35 @@ local function extractAwardStats(packet)
   return stats
 end
 
+--- Prints member award stats and damage to main target table
+local function printMemberAwardStats()
+  logDebug(" --- Player Awards ---")
+  for _, data in pairs(memberAwardStats) do
+    local awardsStr = {}
+    for _, award in pairs(data.awards) do
+      table.insert(awardsStr, string.format("%s: %d", award.name, award.count))
+    end
+    logDebug(string.format("-> %s(%d): %s", data.username, data.memberIndex, table.concat(awardsStr, ", ")))
+  end
+  logDebug(" --- Damage to Main Target Large Monster ---")
+  -- sort memberAwardStats by damage count
+  table.sort(memberAwardStats, function(a, b)
+    return (a.awards[4] and a.awards[4].count or 0) > (b.awards[4] and b.awards[4].count or 0)
+  end)
+  -- sum up total damage
+  local dmgSum = 0
+  for _, data in ipairs(memberAwardStats) do
+    local dmg = data.awards[4] and data.awards[4].count or 0
+    dmgSum = dmgSum + dmg
+  end
+  -- print each player's info in order
+  for i, data in ipairs(memberAwardStats) do
+    local dmg = data.awards[4] and data.awards[4].count or 0
+    local percentage = dmgSum > 0 and (dmg / dmgSum) * 100 or 0
+    logDebug(string.format("-> %s(%d): %d dmg (%.2f%%)", data.username, data.memberIndex, dmg, percentage))
+  end
+end
+
 --- Handler for syncQuestAwardInfo hook
 -- @param args table Hook arguments
 -- @return sdk.PreHookResult|nil
@@ -161,7 +192,7 @@ local function onSyncQuestAwardInfo(args)
 
   -- get stats from cQuestAwardSync and update playerstats
   local stats = extractAwardStats(cQuestAwardSync)
-  playerstats[userIndex] = stats
+  awardStats[userIndex] = stats
 
   local statsStr = {}
   for id, data in pairs(stats) do
@@ -210,52 +241,24 @@ local function onEnterQuestReward(args)
   end
 
   -- map playerstats to user by index
-  local userIndexToAwards = {}
+  memberAwardStats = {}
+
   for i = 0, memberNum - 1 do
-    userIndexToAwards[i + 1] = { -- stupid 1-based indexing
-      userName = userInfoArray[i]:get_PlName(),
+    memberAwardStats[i + 1] = { -- stupid 1-based indexing
+      memberIndex = i,
+      username = userInfoArray[i]:get_PlName(),
       shortHunterId = userInfoArray[i]:get_ShortHunterId(),
       isSelf = userInfoArray[i]:get_IsSelf(),
-      awards = playerstats[i] or {},
+      awards = awardStats[i] or {},
     }
   end
 
-  -- Print all player awards
-  logDebug(" --- Player Awards ---")
-  for _, data in pairs(userIndexToAwards) do
-    local awardsStr = {}
-    for _, award in pairs(data.awards) do
-      table.insert(awardsStr, string.format("%s: %d", award.name, award.count))
-    end
-    logDebug(string.format("-> %s: %s", data.userName, table.concat(awardsStr, ", ")))
-  end
-  logDebug(" --- Damage to Main Target Large Monster ---")
-  -- sort userIndexToAwards by damage count
-  table.sort(userIndexToAwards, function(a, b)
-    return (a.awards[4] and a.awards[4].count or 0) > (b.awards[4] and b.awards[4].count or 0)
-  end)
-  -- sum up total damage
-  local dmgSum = 0
-  for _, data in ipairs(userIndexToAwards) do
-    local dmg = data.awards[4] and data.awards[4].count or 0
-    dmgSum = dmgSum + dmg
-  end
-  -- print each player's info in order
-  for _, data in ipairs(userIndexToAwards) do
-    local dmg = data.awards[4] and data.awards[4].count or 0
-    local percentage = dmgSum > 0 and (dmg / dmgSum) * 100 or 0
-    logDebug(string.format("-> %s: %d dmg (%.2f%%)", data.userName, dmg, percentage))
-  end
+  -- Print all member award stats with dmg table
+  printMemberAwardStats()
 end
 
--- Helper function to register hooks
-local function registerHook(method, pre, post)
-  if not method then return end
-  sdk.hook(method, pre, post)
-
-  logDebug("Hook registered for method: " .. tostring(method:get_name()))
-end
-
+--- Handler for when sub menus open
+-- @param args table Hook arguments
 local function onRequestSubMenu(args)
   if not config.enabled then
     return sdk.PreHookResult.CALL_ORIGINAL
@@ -295,18 +298,25 @@ local function onRequestSubMenu(args)
   return sdk.PreHookResult.CALL_ORIGINAL
 end
 
+
+-- Helper function to register hooks
+local function registerHook(method, pre, post)
+  if not method then return end
+  sdk.hook(method, pre, post)
+
+  logDebug("Hook registered for method: " .. tostring(method:get_name()))
+end
+
 -- Draw REFramework UI
 re.on_draw_ui(function()
   if imgui.tree_node("Better Hunter Highlights") then
     -- checkbox returns true if clicked
     if imgui.checkbox("Enable Mod", config.enabled) then
-      -- toggle the flag and mark config dirty
       config.enabled = not config.enabled
       if not config.enabled then
-        DEBUG_MODE = false
+        config.debug = false -- disable debug mode if mod is disabled
       end
-
-      logDebug("Better Hunter Highlights set enabled to " .. tostring(config.enabled))
+      logDebug("Config set enabled to " .. tostring(config.enabled))
     end
 
     -- skip if mod disabled
@@ -316,14 +326,14 @@ re.on_draw_ui(function()
     end
 
     -- checkbox for debug mode
-    if imgui.checkbox("Debug Mode", DEBUG_MODE) then
-      DEBUG_MODE = not DEBUG_MODE
-      logDebug("Debug Mode set to " .. tostring(DEBUG_MODE))
+    if imgui.checkbox("Debug Mode", config.debug) then
+      logDebug("Config set debug mode to " .. tostring(config.debug))
     end
 
     imgui.indent(20)
+
     imgui.text("Stats will be shown at quest end.")
-    -- here you could add more checkboxes/sliders
+
     imgui.unindent(20)
 
     imgui.tree_pop()
