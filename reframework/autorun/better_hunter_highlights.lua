@@ -7,10 +7,10 @@
 ---@diagnostic disable: undefined-global, undefined-doc-name
 
 -- types
-local cQuestRewardType = sdk.find_type_definition("app.cQuestReward")
-local cQuestDirectorType = sdk.find_type_definition("app.cQuestDirector")
-local questDefType = sdk.find_type_definition("app.QuestDef")
-local messageUtilType = sdk.find_type_definition("app.MessageUtil")
+local cQuestRewardType        = sdk.find_type_definition("app.cQuestReward")
+local cQuestDirectorType      = sdk.find_type_definition("app.cQuestDirector")
+local questDefType            = sdk.find_type_definition("app.QuestDef")
+local messageUtilType         = sdk.find_type_definition("app.MessageUtil")
 -- local subMenuType = sdk.find_type_definition("app.cGUISubMenuInfo")
 -- local guidType = sdk.find_type_definition("System.Guid")
 -- local guiManagerType = sdk.find_type_definition("app.GUIManager")
@@ -19,18 +19,18 @@ local messageUtilType = sdk.find_type_definition("app.MessageUtil")
 -- local guiUtilAppType = sdk.find_type_definition("app.GUIUtilApp")
 
 -- methods to hook
-local syncQuestAwardInfo = cQuestDirectorType:get_method("syncQuestAwardInfo")
-local enterQuestReward = cQuestRewardType:get_method("enter()")
+local syncQuestAwardInfo      = cQuestDirectorType:get_method("syncQuestAwardInfo")
+local enterQuestReward        = cQuestRewardType:get_method("enter()")
 -- local guiManagerRequestSubMenu = guiManagerType:get_method("requestSubMenu")
 -- local updateListItem = gui070003PartsList:get_method("updateListItem")
 
 -- utility methods
-local getAwardNameHelper = questDefType:get_method("Name(app.QuestDef.AwardID)")
-local getAwardExplainHelper = questDefType:get_method("Explain(app.QuestDef.AwardID)")
+local getAwardNameHelper      = questDefType:get_method("Name(app.QuestDef.AwardID)")
+local getAwardExplainHelper   = questDefType:get_method("Explain(app.QuestDef.AwardID)")
 local getAwardThresholdHelper = questDefType:get_method("Threshold(app.QuestDef.AwardID)")
-local getAwardUnitHelper = questDefType:get_method("Unit(app.QuestDef.AwardID)")
-local getAwardWeightHelper = questDefType:get_method("Weight(app.QuestDef.AwardID)")
-local getTextHelper = messageUtilType:get_method("getText(System.Guid, System.Int32)")
+local getAwardUnitHelper      = questDefType:get_method("Unit(app.QuestDef.AwardID)")
+local getAwardWeightHelper    = questDefType:get_method("Weight(app.QuestDef.AwardID)")
+local getTextHelper           = messageUtilType:get_method("getText(System.Guid, System.Int32)")
 -- local newGuid = guidType:get_method("NewGuid")
 -- local addSubMenuItem = subMenuType:get_method(
 --   "addItem(System.String, System.Guid, System.Guid, System.Boolean, System.Boolean, System.Action)")
@@ -40,14 +40,21 @@ local getTextHelper = messageUtilType:get_method("getText(System.Guid, System.In
 -- local getText = messageUtilType:get_method("getText(System.Guid, System.Int32)")
 
 -- variables
-local memberAwardStats = {}
-local showAwardWindow = false
-local config = { enabled = true, debug = true, cache = {} }
+local memberAwardStats        = {}
+local showAwardWindow         = false
+local config                  = { enabled = true, debug = true, cache = {} }
 
--- local AWARD_UNIT = { COUNT = 0, TIME = 1, NONE = 2 }
-local SESSION_TYPE = { LOBBY = 1, QUEST = 2, LINK = 3 }
-local CONFIG_PATH = "better_hunter_highlights.json"
-local DAMAGE_AWARD_ID = 4
+-- local AWARD_UNIT           = { COUNT = 0, TIME = 1, NONE = 2 }
+local SESSION_TYPE            = { LOBBY = 1, QUEST = 2, LINK = 3 }
+local CONFIG_PATH             = "better_hunter_highlights.json"
+local DAMAGE_AWARD_ID         = 4
+local COLORS                  = {
+  0x50e580f5, -- pink
+  0x500000ff, -- red
+  0x5049cff5, -- yellow
+  0x50a4ffa4, -- green
+  0xCC666666, -- gray
+}
 
 -- Log debug message
 local function logDebug(message)
@@ -456,7 +463,7 @@ re.on_draw_ui(function()
 
     -- only show button if memberAwardStats has data
     if #memberAwardStats > 0 then
-      if imgui.button("Show Award Stats Window") then
+      if imgui.button("Show Hunter Highlights Window") then
         showAwardWindow = not showAwardWindow
       end
     else
@@ -479,67 +486,70 @@ re.on_draw_ui(function()
     local openFlag = { true }
 
     if imgui.begin_window("Better Hunter Highlights - Awards", true, 0) then
-      -- build a map of awards keyed by awardId
-      local awardMap = {}
-      local players = {}
+      local hasValidData = memberAwardStats and #memberAwardStats > 0 and memberAwardStats[1].awards
 
-      -- collect players and organize awards data
-      for _, player in ipairs(memberAwardStats) do
-        local uname = player.username or "Unknown"
-        table.insert(players, uname)
-        for _, award in ipairs(player.awards or {}) do
-          local id = award.awardId or 0
-          if not awardMap[id] then
-            awardMap[id] = {
-              name    = award.name or ("Award " .. tostring(id)),
-              explain = award.explain or "",
-              counts  = {}
-            }
-          end
-          awardMap[id].counts[uname] = award.count or 0
-        end
-      end
+      if not hasValidData then
+        imgui.text("No award data available.")
+      else
+        local colCount = 3 + #memberAwardStats
+        local tableFlags = imgui.TableFlags.Borders | imgui.TableFlags.SizingFixedFit | imgui.TableFlags.RowBg |
+            imgui.TableFlags.ScrollY | imgui.TableFlags.Sortable | imgui.TableFlags.Resizable
 
-      -- calculate total columns: ID, Title, Description, one per player
-      local colCount = 3 + #players
-
-      local tableFlags = imgui.TableFlags.Borders | imgui.TableFlags.SizingFixedFit
-      if imgui.begin_table("awards_table", colCount, tableFlags) then
-        -- setup column headers
-        imgui.table_setup_column("ID")
-        imgui.table_setup_column("Title")
-        imgui.table_setup_column("Description")
-
-        for _, pname in ipairs(players) do
-          imgui.table_setup_column(pname, nil, 80)
-        end
-        imgui.table_headers_row()
-
-        -- fill rows: one row per awardId
-        for id = 0, #awardMap do
-          local data = awardMap[id]
+        if imgui.begin_table("awards_table", colCount, tableFlags) then
+          -- Header setup
+          imgui.table_setup_column("ID")
+          imgui.table_setup_column("Title")
+          imgui.table_setup_column("Description")
 
           imgui.table_next_row()
-
-          imgui.table_set_column_index(0)
-          imgui.text(tostring(id + 1))
-
-          imgui.table_set_column_index(1)
-          imgui.text(data.name)
-
-          imgui.table_set_column_index(2)
-          imgui.text(data.explain)
-
-          for id2 = 0, #players - 1 do
-            local pname = players[id2 + 1]
-            imgui.table_set_column_index(3 + id2)
-            imgui.text(tostring(data.counts[pname] or 0))
+          for i = 1, #memberAwardStats do
+            imgui.table_setup_column(memberAwardStats[i].username or ("Player " .. tostring(i)), nil, 130)
           end
+
+          imgui.table_headers_row()
+
+          for awardIndex = 1, #(memberAwardStats[1].awards or {}) do
+            local firstAward = memberAwardStats[1].awards[awardIndex]
+            if firstAward then
+              imgui.table_next_row()
+
+              imgui.table_set_column_index(0)
+              imgui.text(tostring(awardIndex))
+
+              imgui.table_set_column_index(1)
+              imgui.text(firstAward.name or ("Award " .. tostring(awardIndex)))
+
+              imgui.table_set_column_index(2)
+              imgui.text(firstAward.explain or "")
+
+              -- columns per player
+              for playerIndex = 1, #memberAwardStats do
+                local player = memberAwardStats[playerIndex]
+                local award = player.awards and player.awards[awardIndex]
+                imgui.table_set_column_index(2 + playerIndex)
+
+                local count = award and award.count or 0
+                local valueStr = tostring(count)
+
+                -- add percentage if it's the damage award
+                if award and award.awardId == DAMAGE_AWARD_ID then
+                  local percent = player.damagePercentage or 0
+                  valueStr = string.format("%d (%.2f%%%%)", count, percent)
+                end
+
+                -- highlight non-zero values
+                if valueStr ~= "0" and valueStr ~= "" then
+                  imgui.table_set_bg_color(3, COLORS[playerIndex % #COLORS], imgui.table_get_column_index())
+                  imgui.text(valueStr)
+                else
+                  imgui.text(valueStr)
+                end
+              end
+            end
+          end
+          imgui.end_table()
         end
-
-        imgui.end_table()
       end
-
       imgui.end_window()
     end
 
