@@ -7,48 +7,54 @@
 ---@diagnostic disable: undefined-global, undefined-doc-name
 
 -- types
-local cQuestRewardType        = sdk.find_type_definition("app.cQuestReward")
-local cQuestDirectorType      = sdk.find_type_definition("app.cQuestDirector")
-local questDefType            = sdk.find_type_definition("app.QuestDef")
-local messageUtilType         = sdk.find_type_definition("app.MessageUtil")
--- local subMenuType = sdk.find_type_definition("app.cGUISubMenuInfo")
--- local guidType = sdk.find_type_definition("System.Guid")
--- local guiManagerType = sdk.find_type_definition("app.GUIManager")
--- local gui070003PartsList = sdk.find_type_definition("app.GUI070003PartsList")
--- local guiBaseAppType = sdk.find_type_definition("app.GUIBaseApp")
--- local guiUtilAppType = sdk.find_type_definition("app.GUIUtilApp")
+local cQuestRewardType                        = sdk.find_type_definition("app.cQuestReward")
+local cQuestDirectorType                      = sdk.find_type_definition("app.cQuestDirector")
+local questDefType                            = sdk.find_type_definition("app.QuestDef")
+local messageUtilType                         = sdk.find_type_definition("app.MessageUtil")
+local subMenuType                             = sdk.find_type_definition("app.cGUISubMenuInfo")
+local guidType                                = sdk.find_type_definition("System.Guid")
+local guiManagerType                          = sdk.find_type_definition("app.GUIManager")
+-- local gui070003PartsList                      = sdk.find_type_definition("app.GUI070003PartsList")
+-- local guiBaseAppType                          = sdk.find_type_definition("app.GUIBaseApp")
+-- local guiUtilAppType                          = sdk.find_type_definition("app.GUIUtilApp")
+-- local gui040301                               = sdk.find_type_definition("app.GUI040301")
+local guiInputCtrlFluentScrollListType        = sdk.find_type_definition(
+  "ace.cGUIInputCtrl_FluentScrollList`2<app.GUIID.ID,app.GUIFunc.TYPE>")
 
 -- methods to hook
-local syncQuestAwardInfo      = cQuestDirectorType:get_method("syncQuestAwardInfo")
-local enterQuestReward        = cQuestRewardType:get_method("enter()")
--- local guiManagerRequestSubMenu = guiManagerType:get_method("requestSubMenu")
+local syncQuestAwardInfo                      = cQuestDirectorType:get_method("syncQuestAwardInfo")
+local enterQuestReward                        = cQuestRewardType:get_method("enter()")
+local guiManagerRequestSubMenu                = guiManagerType:get_method("requestSubMenu")
+local guiInputCtrlFluentScrollListIndexChange = guiInputCtrlFluentScrollListType:get_method(
+  "getSelectedIndex")
 -- local updateListItem = gui070003PartsList:get_method("updateListItem")
 
 -- utility methods
-local getAwardNameHelper      = questDefType:get_method("Name(app.QuestDef.AwardID)")
-local getAwardExplainHelper   = questDefType:get_method("Explain(app.QuestDef.AwardID)")
-local getAwardThresholdHelper = questDefType:get_method("Threshold(app.QuestDef.AwardID)")
-local getAwardUnitHelper      = questDefType:get_method("Unit(app.QuestDef.AwardID)")
-local getAwardWeightHelper    = questDefType:get_method("Weight(app.QuestDef.AwardID)")
-local getTextHelper           = messageUtilType:get_method("getText(System.Guid, System.Int32)")
--- local newGuid = guidType:get_method("NewGuid")
--- local addSubMenuItem = subMenuType:get_method(
---   "addItem(System.String, System.Guid, System.Guid, System.Boolean, System.Boolean, System.Action)")
--- local setMessageApp = guiBaseAppType:get_method(
+local getAwardNameHelper                      = questDefType:get_method("Name(app.QuestDef.AwardID)")
+local getAwardExplainHelper                   = questDefType:get_method("Explain(app.QuestDef.AwardID)")
+local getAwardThresholdHelper                 = questDefType:get_method("Threshold(app.QuestDef.AwardID)")
+local getAwardUnitHelper                      = questDefType:get_method("Unit(app.QuestDef.AwardID)")
+local getAwardWeightHelper                    = questDefType:get_method("Weight(app.QuestDef.AwardID)")
+local getTextHelper                           = messageUtilType:get_method("getText(System.Guid, System.Int32)")
+local newGuid                                 = guidType:get_method("NewGuid")
+local addSubMenuItem                          = subMenuType:get_method(
+  "addItem(System.String, System.Guid, System.Guid, System.Boolean, System.Boolean, System.Action)")
+-- local setMessageApp                           = guiBaseAppType:get_method(
 --   "setMessageApp(via.gui.Text, app.MessageDef.DIRECT, System.String, System.Func`2<System.String,System.String>)")
--- local setTextColor = guiUtilAppType:get_method("setTextColor")
--- local getText = messageUtilType:get_method("getText(System.Guid, System.Int32)")
+-- local setTextColor                            = guiUtilAppType:get_method("setTextColor")
+-- local getText                                 = messageUtilType:get_method("getText(System.Guid, System.Int32)")
 
 -- variables
-local memberAwardStats        = {}
-local showAwardWindow         = false
-local config                  = { enabled = true, debug = true, cache = {} }
+local selectedHunterId                        = ""
+local memberAwardStats                        = {}
+local showAwardWindow                         = false
+local config                                  = { enabled = true, debug = true, cache = {} }
 
--- local AWARD_UNIT           = { COUNT = 0, TIME = 1, NONE = 2 }
-local SESSION_TYPE            = { LOBBY = 1, QUEST = 2, LINK = 3 }
-local CONFIG_PATH             = "better_hunter_highlights.json"
-local DAMAGE_AWARD_ID         = 4
-local COLORS                  = {
+local AWARD_UNIT                              = { COUNT = 0, TIME = 1, NONE = 2 }
+local SESSION_TYPE                            = { LOBBY = 1, QUEST = 2, LINK = 3 }
+local CONFIG_PATH                             = "better_hunter_highlights.json"
+local DAMAGE_AWARD_ID                         = 4
+local COLORS                                  = {
   0x50e580f5, -- pink
   0x500000ff, -- red
   0x5049cff5, -- yellow
@@ -296,6 +302,7 @@ local function onEnterQuestReward(args)
   end
   -- complete memberAwardStats with user info and damage stats
   for i = 0, memberNum - 1 do
+    logDebug(string.format("Member %s is at index %d", userInfoArray[i]:get_PlName(), i + 1))
     local entry = memberAwardStats[i + 1] or { memberIndex = i, awards = {} }
     local damage = getDamageCount(entry.awards)
     local damagePercentage = totalDamage > 0 and (damage / totalDamage) * 100 or 0
@@ -319,114 +326,174 @@ local function onEnterQuestReward(args)
   logDebug("Cached memberAwardStats in config")
 end
 
--- --- Handler for when sub menus open
--- --- @param args table Hook arguments
--- local function onRequestSubMenu(args)
---   if not config.enabled then
---     return sdk.PreHookResult.CALL_ORIGINAL
---   end
+--- Handler for when sub menus open
+--- @param args table Hook arguments
+local function onRequestSubMenu(args)
+  if not config.enabled then
+    return sdk.PreHookResult.SKIP_ORIGINAL
+  end
 
---   local owner = sdk.to_managed_object(args[3])
---   local subMenu = sdk.to_managed_object(args[4])
+  local owner = sdk.to_managed_object(args[3])
+  local subMenu = sdk.to_managed_object(args[4])
 
---   logDebug("RequestSubMenu called for " .. tostring(owner:get_type_definition():get_full_name()))
+  logDebug("RequestSubMenu called for " .. tostring(owner:get_type_definition():get_full_name()))
 
---   if subMenu == nil then
---     logDebug("requestSubMenu subMenu is nil")
---     return sdk.PreHookResult.CALL_ORIGINAL
---   end
+  if subMenu == nil then
+    logDebug("requestSubMenu subMenu is nil")
+    return sdk.PreHookResult.SKIP_ORIGINAL
+  end
 
---   -- skip all submenus except the one for parts list
---   if owner:get_type_definition():get_full_name() ~= "app.GUI070003PartsList" then
---     return sdk.PreHookResult.CALL_ORIGINAL
---   end
+  -- skip all submenus except the one for parts list
+  if owner:get_type_definition():get_full_name() ~= "app.GUI070003PartsList" then
+    return sdk.PreHookResult.SKIP_ORIGINAL
+  end
 
---   local item0 = subMenu:getItem(0)
+  local item0 = subMenu:getItem(0)
+  local item1 = subMenu:getItem(1)
+  local item2 = subMenu:getItem(2)
 
---   local executeAction = item0 and item0:get_ExecuteAction()
---   if executeAction == nil then
---     logDebug("No execute action found in item 1 of submenu")
---     return sdk.PreHookResult.CALL_ORIGINAL
---   end
+  item0:clear()
+  item0:set_IsEnable(true)
+  item0:set_IsChecked(true)
+  item1:clear()
+  item1:set_IsEnable(true)
+  item1:set_IsChecked(true)
+  item2:clear()
+  item2:set_IsEnable(true)
+  item2:set_IsChecked(true)
 
---   executeAction:add_ref()
+  local emptyAction = sdk.create_instance(sdk.typeof("System.Action"))
+  item0:set_ExecuteAction(emptyAction)
+  item1:set_ExecuteAction(emptyAction)
+  item2:set_ExecuteAction(emptyAction)
 
---   -- Add custom item to the submenu
+  -- find memberAwardStats element with hunterId matching selectedHunterId
+  local memberAward = nil
+  for i = 1, #memberAwardStats do
+    local data = memberAwardStats[i]
+    if data and data.shortHunterId == selectedHunterId then
+      memberAward = data
+      break
+    end
+  end
 
---   local guid = newGuid:call(nil)
---   local item4Text = "Show Better Hunter Highlights"
---   addSubMenuItem:call(subMenu, item4Text, guid, guid, true, false, executeAction)
+  if not memberAward then
+    logDebug("No member award found for selected hunter ID: " .. tostring(selectedHunterId))
+    return sdk.PreHookResult.SKIP_ORIGINAL
+  end
 
---   return sdk.PreHookResult.CALL_ORIGINAL
--- end
+  local awardCount = memberAward and #memberAward.awards or 0
+  if awardCount == 0 then
+    logDebug("No awards found for selected hunter ID: " .. tostring(selectedHunterId))
+    return sdk.PreHookResult.SKIP_ORIGINAL
+  end
+
+  -- sort awards list to ensure damage award is first
+  table.sort(memberAward.awards, function(a, b)
+    if a.awardId == DAMAGE_AWARD_ID then return true end
+    if b.awardId == DAMAGE_AWARD_ID then return false end
+    return a.awardId < b.awardId
+  end)
+
+  -- add a custom item for each award to the sub menu
+  for i = 1, awardCount do
+    local award = memberAward.awards[i]
+    -- skip awards that are 0
+    if award and award.count and award.count > 0 then
+      local guid = newGuid:call(nil)
+      -- check if damage award
+      local itemText
+      if award.awardId == DAMAGE_AWARD_ID then
+        itemText = string.format("Damage: %d (%.2f%%)", award.count, memberAward.damagePercentage)
+      else
+        -- check if time unit
+        if award.unit == AWARD_UNIT.TIME then
+          -- bring it in format 00'00
+          local minutes = math.floor(award.count / 60)
+          local seconds = award.count % 60
+          itemText = string.format("%s: %02d'%02d\"", award.name, minutes, seconds)
+        else
+          -- default to count unit
+          itemText = string.format("%s: %d", award.name, award.count or 0)
+        end
+      end
+      addSubMenuItem:call(subMenu, itemText, guid, guid, true, false, emptyAction)
+    end
+  end
+
+  return sdk.PreHookResult.CALL_ORIGINAL
+end
 
 
--- local function onUpdateListItem(args)
---   if not config.enabled then
---     return sdk.PreHookResult.CALL_ORIGINAL
---   end
+--- Handler for fluent scroll list index change
+--- @param args table Hook arguments
+--- @return sdk.PreHookResult|nil
+local function onIndexChange(args)
+  if not config.enabled then
+    return sdk.PreHookResult.CALL_ORIGINAL
+  end
 
---   local partsList = sdk.to_managed_object(args[2])
---   if not partsList then
---     logError("Invalid partsList in updateListItem.")
---     return sdk.PreHookResult.CALL_ORIGINAL
---   end
+  local guiInputCtrlFluentScrollList = sdk.to_managed_object(args[2])
+  if not guiInputCtrlFluentScrollList then
+    logError("Invalid guiInputCtrlFluentScrollList in onIndexChange.")
+    return sdk.PreHookResult.CALL_ORIGINAL
+  end
 
---   local index = sdk.to_int64(args[3])
---   if index < 0 or index >= 4 then
---     logError("Invalid index in updateListItem: " .. tostring(index))
---     return sdk.PreHookResult.CALL_ORIGINAL
---   end
+  -- get SelectedItem field
+  local selectedItem = guiInputCtrlFluentScrollList:call("getSelectedItem")
+  if not selectedItem then
+    logError("SelectedItem is nil in onIndexChange.")
+    return sdk.PreHookResult.CALL_ORIGINAL
+  end
 
+  -- beware: this is a hardcoded path to the text element in the hunter highlights menu. I know this is ugly...
+  local panelType = sdk.typeof("via.gui.Panel")
+  local textType = sdk.typeof("via.gui.Text")
 
-
---   local memberData = memberAwardStats[index + 1]
---   logDebug("updateListItem called for index: " ..
---     tostring(index) .. ", memberData: " .. (memberData and memberData.username or "nil"))
-
-
---   local dmgCount = (memberData and memberData.awards and getDamageCount(memberData.awards) or 0) or 0
---   local text = string.format("%d (%s)", dmgCount, memberData and memberData.username or "unknown")
-
---   local guiSelectItem = sdk.to_managed_object(args[4])
---   if not guiSelectItem then
---     logError("Invalid partsList or guiSelectItem in updateListItem.")
---     return sdk.PreHookResult.CALL_ORIGINAL
---   end
-
---   local panelType = sdk.typeof("via.gui.Panel")
---   local textType = sdk.typeof("via.gui.Text")
-
---   local function recursiveUpdateText(guiObject)
---     if not guiObject then return end
-
---     local objTypeName = guiObject:get_type_definition():get_name()
-
---     if objTypeName == "Text" then
---       guiObject:call("set_Message", text)
---       logDebug("Updated Text element with prior text: " .. tostring(guiObject:call("get_Message")))
---     elseif objTypeName == "Panel" or objTypeName == "SelectItem" then
---       -- panels, selectitem or their children
---       local children = guiObject:call("getChildren", panelType)
---       if children then
---         for i = 0, #children - 1 do
---           local child = children[i]
---           recursiveUpdateText(child)
---         end
---       end
---       local textChildren = guiObject:call("getChildren", textType)
---       if textChildren then
---         for i = 0, #textChildren - 1 do
---           local textChild = textChildren[i]
---           recursiveUpdateText(textChild)
---         end
---       end
---     end
---   end
-
---   recursiveUpdateText(guiSelectItem)
--- end
-
+  local panel1Children = selectedItem:call("getChildren", panelType)
+  if not panel1Children then
+    logError("Panel1Children is nil in onIndexChange.")
+    return sdk.PreHookResult.CALL_ORIGINAL
+  end
+  local panel1Child = panel1Children[2]
+  if not panel1Child then
+    logError("Panel1Child is nil in onIndexChange with #children = " .. tostring(#panel1Children))
+    return sdk.PreHookResult.CALL_ORIGINAL
+  end
+  local panel2Children = panel1Child:call("getChildren", panelType)
+  if not panel2Children then
+    logError("Panel2Children is nil in onIndexChange.")
+    return sdk.PreHookResult.CALL_ORIGINAL
+  end
+  local panel2Child = panel2Children[0]
+  if not panel2Child then
+    logError("Panel2Child is nil in onIndexChange with #children = " .. tostring(#panel2Children))
+    return sdk.PreHookResult.CALL_ORIGINAL
+  end
+  local panel3Children = panel2Child:call("getChildren", panelType)
+  if not panel3Children then
+    logError("Panel3Children is nil in onIndexChange.")
+    return sdk.PreHookResult.CALL_ORIGINAL
+  end
+  local panel3Child = panel3Children[1]
+  if not panel3Child then
+    logError("Panel3Child is nil in onIndexChange with #children = " .. tostring(#panel3Children))
+    return sdk.PreHookResult.CALL_ORIGINAL
+  end
+  local textChildren = panel3Child:call("getChildren", textType)
+  if not textChildren then
+    logError("TextChildren panel3 is nil in onIndexChange.")
+    return sdk.PreHookResult.CALL_ORIGINAL
+  end
+  local textChild = textChildren[0]
+  if not textChild then
+    logError("TextChild is nil in onIndexChange with #children = " .. tostring(#textChildren))
+    return sdk.PreHookResult.CALL_ORIGINAL
+  end
+  local hunterId = textChild:call("get_Message")
+  logDebug("Selected Hunter ID: " .. tostring(hunterId))
+  selectedHunterId = hunterId
+end
 
 -- Helper function to register hooks
 local function registerHook(method, pre, post)
@@ -578,11 +645,11 @@ if config.enabled then
   -- Called when entering quest reward state, prints stats if host
   registerHook(enterQuestReward, onEnterQuestReward, nil)
 
-  -- -- Called when opening a sub-menu, adds custom items
-  -- registerHook(guiManagerRequestSubMenu, onRequestSubMenu, nil)
+  -- Called when opening a sub-menu, adds custom items
+  registerHook(guiManagerRequestSubMenu, onRequestSubMenu, nil)
 
-  -- -- Called once for each panel in the hunter highlights menu
-  -- registerHook(updateListItem, onUpdateListItem, nil)
+  -- Called when a fluent scroll list index changes, used to update the selected index in the hunter highlights menu
+  registerHook(guiInputCtrlFluentScrollListIndexChange, onIndexChange, nil)
 end
 
 logDebug("Better Hunter Highlights initialized successfully!")
