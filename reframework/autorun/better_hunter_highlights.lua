@@ -1,9 +1,10 @@
+--
 -- Better Hunter Highlights
 --
 -- Logs quest award contributions for all players at the end of a quest
 -- Hooks into quest sync and result methods to collect and summarize player awards
 --
----@diagnostic disable: undefined-global
+---@diagnostic disable: undefined-global, undefined-doc-name
 
 -- types
 local cQuestRewardType = sdk.find_type_definition("app.cQuestReward")
@@ -20,20 +21,24 @@ local enterQuestReward = cQuestRewardType:get_method("enter()")
 local guiManagerRequestSubMenu = guiManagerType:get_method("requestSubMenu")
 
 -- utility methods
-local getTextHelper = messageUtilType:get_method("getText(System.Guid, System.Int32)")
 local getAwardNameHelper = questDefType:get_method("Name(app.QuestDef.AwardID)")
 local getAwardExplainHelper = questDefType:get_method("Explain(app.QuestDef.AwardID)")
+local getAwardThresholdHelper = questDefType:get_method("Threshold(app.QuestDef.AwardID)")
+local getAwardUnitHelper = questDefType:get_method("Unit(app.QuestDef.AwardID)")
+local getAwardWeightHelper = questDefType:get_method("Weight(app.QuestDef.AwardID)")
+local getTextHelper = messageUtilType:get_method("getText(System.Guid, System.Int32)")
+local newGuid = guidType:get_method("NewGuid")
 local addSubMenuItem = subMenuType:get_method(
   "addItem(System.String, System.Guid, System.Guid, System.Boolean, System.Boolean, System.Action)")
-local newGuid = guidType:get_method("NewGuid")
 
 -- variables
-local awardStats = {}
 local memberAwardStats = {}
-local config = { enabled = true, debug = false }
+local config = { enabled = true, debug = true }
 
 local SESSION_TYPE = { LOBBY = 1, QUEST = 2, LINK = 3 }
+-- local AWARD_UNIT = { COUNT = 0, TIME = 1, NONE = 2 }
 local CONFIG_PATH = "better_hunter_highlights.json"
+local DAMAGE_AWARD_ID = 4
 
 -- Log debug message
 local function logDebug(message)
@@ -64,50 +69,68 @@ local function loadConfig()
 end
 
 --- Safely call a function and return result or nil
--- @param fn function The function to call
--- @return any|nil The result if successful
+--- @param fn function The function to call
+--- @return any|nil The result if successful
 local function safeCall(fn)
   local ok, result = pcall(fn)
   if not ok then
-    logError("n safeCall: " .. tostring(result))
+    logError("SafeCall: " .. tostring(result))
   end
   return ok and result or nil
 end
 
---- Gets a localized string from a GUID via MessageUtil
--- @param guid any The GUID
--- @return string The localized string or fallback
-local function getAwardText(guid)
-  return safeCall(function()
-    return getTextHelper:call(nil, guid, 0)
-  end) or "<Unknown>"
-end
+--- Get meta information about an award by its awardId
+--- @param awardId number The ID of the award
+--- @return table Table containing award metadata
+local function getAwardMeta(awardId)
+  -- Helper to resolve GUIDs to text
+  local function guidToText(guid, fallbackPrefix)
+    if not guid then
+      return string.format("%s_%d", fallbackPrefix, awardId)
+    end
+    local text = safeCall(function()
+      return getTextHelper:call(nil, guid, 0)
+    end)
+    return text or string.format("%s_%d", fallbackPrefix, awardId)
+  end
 
---- Get award name from ID
--- @param awardId number The award ID
--- @return string Award name
-local function getAwardName(awardId)
-  local guid = safeCall(function()
+  -- guid return values (name, explain)
+  local nameGuid = safeCall(function()
     return getAwardNameHelper:call(nil, awardId)
   end)
-  return guid and getAwardText(guid) or string.format("Award_%d", awardId)
-end
-
---- Get award description from ID
--- @param awardId number The award ID
--- @return string Award explanation
-local function getAwardExplain(awardId)
-  local guid = safeCall(function()
+  local explainGuid = safeCall(function()
     return getAwardExplainHelper:call(nil, awardId)
   end)
-  return guid and getAwardText(guid) or string.format("Explain_%d", awardId)
+
+  -- non guid return values (threshold, unit, weight)
+  local threshold = safeCall(function()
+    return getAwardThresholdHelper:call(nil, awardId)
+  end) or -1
+
+  local unit = safeCall(function()
+    return getAwardUnitHelper:call(nil, awardId)
+  end) or -1
+
+  local weight = safeCall(function()
+    return getAwardWeightHelper:call(nil, awardId)
+  end) or -1
+
+  return {
+    awardId = awardId,
+    name = guidToText(nameGuid, "Award"),
+    explain = guidToText(explainGuid, "Explain"),
+    threshold = threshold,
+    unit = unit,
+    weight = weight,
+  }
 end
 
---- Extracts stats from a sync packet
--- @param packet userdata The cQuestAwardSync packet
--- @return table Table of awardId to stats
+--- Extracts awardsArray from a sync packet
+--- @param packet userdata The cQuestAwardSync packet
+--- @return table[] Table of awardId to awardsArray
 local function extractAwardStats(packet)
-  local stats = {}
+  local awardsArray = {}
+
   -- award01 is special case, its type is System.UInt32[]
   local award01Count = safeCall(function()
     local award01Array = packet["award01"]
@@ -115,58 +138,68 @@ local function extractAwardStats(packet)
     -- sum up all 4 elements of the array (It's always 4)
     return award01Array:get_Item(0) + award01Array:get_Item(1) + award01Array:get_Item(2) + award01Array:get_Item(3)
   end)
-  stats[0] = {
-    name = getAwardName(0),
-    explain = getAwardExplain(0),
-    count = award01Count,
-  }
+
+  -- insert award01
+  local meta0 = getAwardMeta(0)
+  meta0.count = award01Count
+  table.insert(awardsArray, meta0)
+
   -- awards 02 to 30
   for i = 2, 30 do
     local raw = safeCall(function()
       return packet[string.format("award%02d", i)]
     end)
-    local awardId = i - 1
-    stats[awardId] = {
-      name = getAwardName(awardId),
-      explain = getAwardExplain(awardId),
-      count = raw and math.floor(raw) or 0,
-    }
+    local meta = getAwardMeta(i - 1)
+    meta.count = raw and math.floor(raw) or 0
+    table.insert(awardsArray, meta)
   end
-  return stats
+  return awardsArray
 end
 
 --- Prints member award stats and damage to main target table
 local function printMemberAwardStats()
   logDebug(" --- Player Awards ---")
+  -- Print all award stats per member
   for _, data in pairs(memberAwardStats) do
     local awardsStr = {}
-    for _, award in pairs(data.awards) do
-      table.insert(awardsStr, string.format("%s: %d", award.name, award.count))
+    for _, award in ipairs(data.awards) do
+      table.insert(awardsStr, string.format("%s: %d(%d)", award.name, award.count, award.threshold))
     end
-    logDebug(string.format("-> %s(%d): %s", data.username, data.memberIndex, table.concat(awardsStr, ", ")))
+    logDebug(string.format("  -> %s(%d): %s", data.username or "unknown", data.memberIndex or -1,
+      table.concat(awardsStr, ", ")))
   end
+
   logDebug(" --- Damage to Main Target Large Monster ---")
-  -- sort memberAwardStats by damage count
+  -- Helper function to get the damage award count by ID
+  local function getDamageCount(awards)
+    for _, award in ipairs(awards) do
+      if award.awardId == DAMAGE_AWARD_ID then
+        return award.count or 0
+      end
+    end
+    return 0
+  end
+  -- Sort memberAwardStats by damage count
   table.sort(memberAwardStats, function(a, b)
-    return (a.awards[4] and a.awards[4].count or 0) > (b.awards[4] and b.awards[4].count or 0)
+    return getDamageCount(a.awards) > getDamageCount(b.awards)
   end)
-  -- sum up total damage
+  -- Calculate total damage for percentage calculation
   local dmgSum = 0
   for _, data in ipairs(memberAwardStats) do
-    local dmg = data.awards[4] and data.awards[4].count or 0
-    dmgSum = dmgSum + dmg
+    dmgSum = dmgSum + getDamageCount(data.awards)
   end
-  -- print each player's info in order
-  for i, data in ipairs(memberAwardStats) do
-    local dmg = data.awards[4] and data.awards[4].count or 0
+  -- Print each player's damage and percentage
+  for _, data in ipairs(memberAwardStats) do
+    local dmg = getDamageCount(data.awards)
     local percentage = dmgSum > 0 and (dmg / dmgSum) * 100 or 0
-    logDebug(string.format("-> %s(%d): %d dmg (%.2f%%)", data.username, data.memberIndex, dmg, percentage))
+    logDebug(string.format("  -> %s(%d): %d dmg (%.2f%%)", data.username or "unknown", data.memberIndex or -1, dmg,
+      percentage))
   end
 end
 
 --- Handler for syncQuestAwardInfo hook
--- @param args table Hook arguments
--- @return sdk.PreHookResult|nil
+--- @param args table Hook arguments
+--- @return sdk.PreHookResult|nil
 local function onSyncQuestAwardInfo(args)
   if not config.enabled then
     return sdk.PreHookResult.CALL_ORIGINAL
@@ -191,18 +224,20 @@ local function onSyncQuestAwardInfo(args)
   end
 
   -- get stats from cQuestAwardSync and update playerstats
-  local stats = extractAwardStats(cQuestAwardSync)
-  awardStats[userIndex] = stats
+  local statsArray = extractAwardStats(cQuestAwardSync)
+  local slot = userIndex + 1
+  memberAwardStats[slot] = memberAwardStats[slot] or { memberIndex = userIndex }
+  memberAwardStats[slot].awards = statsArray
 
-  local statsStr = {}
-  for id, data in pairs(stats) do
-    table.insert(statsStr, string.format("(%d|%d)", id, data.count or 0))
+  local parts = {}
+  for _, award in ipairs(statsArray) do
+    table.insert(parts, string.format("(%d|%d)", award.awardId, award.count))
   end
-  logDebug(string.format("Player [%d] Awards: %s", userIndex, table.concat(statsStr, ", ")))
+  logDebug(string.format("Player %d: Awards: %s", userIndex, table.concat(parts, ", ")))
 end
 
 --- Handler when entering quest reward state
--- @param args table Hook arguments
+--- @param args table Hook arguments
 local function onEnterQuestReward(args)
   if not config.enabled then
     return sdk.PreHookResult.CALL_ORIGINAL
@@ -240,17 +275,15 @@ local function onEnterQuestReward(args)
     return
   end
 
-  -- map playerstats to user by index
-  memberAwardStats = {}
-
+  -- complete memberAwardStats with user info
   for i = 0, memberNum - 1 do
-    memberAwardStats[i + 1] = { -- stupid 1-based indexing
-      memberIndex = i,
-      username = userInfoArray[i]:get_PlName(),
-      shortHunterId = userInfoArray[i]:get_ShortHunterId(),
-      isSelf = userInfoArray[i]:get_IsSelf(),
-      awards = awardStats[i] or {},
-    }
+    local entry = memberAwardStats[i + 1] or { memberIndex = i, awards = {} }
+
+    entry.username = userInfoArray[i]:get_PlName()
+    entry.shortHunterId = userInfoArray[i]:get_ShortHunterId()
+    entry.isSelf = userInfoArray[i]:get_IsSelf()
+
+    memberAwardStats[i + 1] = entry
   end
 
   -- Print all member award stats with dmg table
@@ -258,7 +291,7 @@ local function onEnterQuestReward(args)
 end
 
 --- Handler for when sub menus open
--- @param args table Hook arguments
+--- @param args table Hook arguments
 local function onRequestSubMenu(args)
   if not config.enabled then
     return sdk.PreHookResult.CALL_ORIGINAL
@@ -327,6 +360,7 @@ re.on_draw_ui(function()
 
     -- checkbox for debug mode
     if imgui.checkbox("Debug Mode", config.debug) then
+      config.debug = not config.debug
       logDebug("Config set debug mode to " .. tostring(config.debug))
     end
 
