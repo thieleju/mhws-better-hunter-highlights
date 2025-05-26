@@ -199,7 +199,7 @@ local function printMemberAwardStats()
   -- Print each player's damage and percentage
   for _, data in ipairs(memberAwardStats) do
     logDebug(string.format("  -> %s(%d): %d dmg (%.2f%%)", data.username or "unknown", data.memberIndex or -1,
-      data.damageTotal, data.damagePercentage))
+      data.damage, data.damagePercentage))
   end
 end
 
