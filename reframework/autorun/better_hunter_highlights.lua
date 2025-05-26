@@ -41,7 +41,8 @@ local getTextHelper = messageUtilType:get_method("getText(System.Guid, System.In
 
 -- variables
 local memberAwardStats = {}
-local config = { enabled = true, debug = true }
+local showAwardWindow = false
+local config = { enabled = true, debug = true, cache = {} }
 
 -- local AWARD_UNIT = { COUNT = 0, TIME = 1, NONE = 2 }
 local SESSION_TYPE = { LOBBY = 1, QUEST = 2, LINK = 3 }
@@ -304,6 +305,11 @@ local function onEnterQuestReward(args)
 
   -- Print all member award stats with dmg table
   printMemberAwardStats()
+
+  -- Cache the latest memberAwardStats
+  config.cache = memberAwardStats
+  saveConfig()
+  logDebug("Cached memberAwardStats in config")
 end
 
 -- --- Handler for when sub menus open
@@ -441,19 +447,105 @@ re.on_draw_ui(function()
       return
     end
 
+    imgui.indent(20)
+
+    -- Use cached stats if live stats are empty
+    if #memberAwardStats == 0 and config.cache then
+      memberAwardStats = config.cache
+    end
+
+    -- only show button if memberAwardStats has data
+    if #memberAwardStats > 0 then
+      if imgui.button("Show Award Stats Window") then
+        showAwardWindow = not showAwardWindow
+      end
+    else
+      imgui.text("No hunter highlights available yet")
+    end
+
+    imgui.unindent(20)
+
     -- checkbox for debug mode
     if imgui.checkbox("Debug Mode", config.debug) then
       config.debug = not config.debug
       logDebug("Config set debug mode to " .. tostring(config.debug))
     end
 
-    imgui.indent(20)
-
-    imgui.text("Stats will be shown at quest end.")
-
-    imgui.unindent(20)
-
     imgui.tree_pop()
+  end
+
+
+  if showAwardWindow then
+    local openFlag = { true }
+
+    if imgui.begin_window("Better Hunter Highlights - Awards", true, 0) then
+      -- build a map of awards keyed by awardId
+      local awardMap = {}
+      local players = {}
+
+      -- collect players and organize awards data
+      for _, player in ipairs(memberAwardStats) do
+        local uname = player.username or "Unknown"
+        table.insert(players, uname)
+        for _, award in ipairs(player.awards or {}) do
+          local id = award.awardId or 0
+          if not awardMap[id] then
+            awardMap[id] = {
+              name    = award.name or ("Award " .. tostring(id)),
+              explain = award.explain or "",
+              counts  = {}
+            }
+          end
+          awardMap[id].counts[uname] = award.count or 0
+        end
+      end
+
+      -- calculate total columns: ID, Title, Description, one per player
+      local colCount = 3 + #players
+
+      local tableFlags = imgui.TableFlags.Borders | imgui.TableFlags.SizingFixedFit
+      if imgui.begin_table("awards_table", colCount, tableFlags) then
+        -- setup column headers
+        imgui.table_setup_column("ID")
+        imgui.table_setup_column("Title")
+        imgui.table_setup_column("Description")
+
+        for _, pname in ipairs(players) do
+          imgui.table_setup_column(pname, nil, 80)
+        end
+        imgui.table_headers_row()
+
+        -- fill rows: one row per awardId
+        for id = 0, #awardMap do
+          local data = awardMap[id]
+
+          imgui.table_next_row()
+
+          imgui.table_set_column_index(0)
+          imgui.text(tostring(id + 1))
+
+          imgui.table_set_column_index(1)
+          imgui.text(data.name)
+
+          imgui.table_set_column_index(2)
+          imgui.text(data.explain)
+
+          for id2 = 0, #players - 1 do
+            local pname = players[id2 + 1]
+            imgui.table_set_column_index(3 + id2)
+            imgui.text(tostring(data.counts[pname] or 0))
+          end
+        end
+
+        imgui.end_table()
+      end
+
+      imgui.end_window()
+    end
+
+    if not openFlag[1] then
+      showAwardWindow = false
+    end
   end
 end)
 
