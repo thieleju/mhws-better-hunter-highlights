@@ -462,8 +462,9 @@ re.on_draw_ui(function()
     end
 
     -- only show button if memberAwardStats has data
+    local buttonText = showAwardWindow and "Close Hunter Highlights Window" or "Show Hunter Highlights Window"
     if #memberAwardStats > 0 then
-      if imgui.button("Show Hunter Highlights Window") then
+      if imgui.button(buttonText) then
         showAwardWindow = not showAwardWindow
       end
     else
@@ -485,7 +486,7 @@ re.on_draw_ui(function()
   if showAwardWindow then
     local openFlag = { true }
 
-    if imgui.begin_window("Better Hunter Highlights - Awards", true, 0) then
+    if imgui.begin_window("Better Hunter Highlights - Awards", openFlag, 64) then
       local hasValidData = memberAwardStats and #memberAwardStats > 0 and memberAwardStats[1].awards
 
       if not hasValidData then
@@ -534,7 +535,7 @@ re.on_draw_ui(function()
                 -- add percentage if it's the damage award
                 if award and award.awardId == DAMAGE_AWARD_ID then
                   local percent = player.damagePercentage or 0
-                  valueStr = string.format("%d (%.2f%%%%)", count, percent)
+                  valueStr = string.format("%d (%.2f%%)", count, percent)
                 end
 
                 -- highlight non-zero values
