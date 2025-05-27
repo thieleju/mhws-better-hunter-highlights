@@ -18,11 +18,13 @@ jobs:
     steps:
       - uses: actions/checkout@v3
 
+      - name: Install dependencies
+        run: npm ci
+
       - name: Semantic Release Dry Run to get version
         id: semantic_release
-        uses: semantic-release/semantic-release@v18
-        with:
-          dry-run: true
+        run: npx semantic-release --dry-run
+        continue-on-error: true
 
       - name: Build mod and update version
         env:
@@ -30,4 +32,4 @@ jobs:
         run: npm run build
 
       - name: Semantic Release Publish
-        uses: semantic-release/semantic-release@v18
+        run: npx semantic-release
