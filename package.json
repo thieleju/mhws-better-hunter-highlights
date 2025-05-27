@@ -2,7 +2,7 @@
   "name": "better-hunter-highlights",
   "version": "1.0.0",
   "scripts": {
-    "build": "rm -rf dist && mkdir -p dist && zip -r dist/Better-Hunter-Highlights.zip modinfo.ini reframework/autorun/better_hunter_highlights.lua"
+    "build": "node build.js"
   },
   "devDependencies": {
     "@semantic-release/changelog": "^6.0.3",

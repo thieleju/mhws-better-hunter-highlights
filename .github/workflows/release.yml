@@ -3,7 +3,7 @@ name: Release
 on:
   push:
     branches:
-      - main   
+      - main
   workflow_dispatch:
     inputs:
       manual:
@@ -16,21 +16,18 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v3
+      - uses: actions/checkout@v3
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v3
+      - name: Semantic Release Dry Run to get version
+        id: semantic_release
+        uses: semantic-release/semantic-release@v18
         with:
-          node-version: '22' 
+          dry-run: true
 
-      - name: Install dependencies
-        run: npm install
-
-      - name: Build mod ZIP
+      - name: Build mod and update version
+        env:
+          VERSION: ${{ steps.semantic_release.outputs.nextRelease.version }}
         run: npm run build
 
-      - name: Run semantic-release
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: npx semantic-release
+      - name: Semantic Release Publish
+        uses: semantic-release/semantic-release@v18

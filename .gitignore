@@ -14,6 +14,7 @@
 !.releaserc
 !dist
 !dist/Better-Hunter-Highlights.zip
+!build.js
 
 !reframework/autorun/better_hunter_highlights.lua
 !assets
