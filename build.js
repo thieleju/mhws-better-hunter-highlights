@@ -9,6 +9,8 @@ if (!version) {
   process.exit(1);
 }
 
+console.log(`Building Better Hunter Highlights mod version ${version}`);
+
 // update modinfo.ini with the new version
 const modinfoPath = path.resolve(__dirname, 'modinfo.ini');
 let modinfoContent = fs.readFileSync(modinfoPath, 'utf-8');
@@ -30,6 +32,7 @@ output.on('close', () => {
 });
 
 archive.on('error', err => {
+  console.error('Error creating ZIP archive:', err);
   throw err;
 });
 
