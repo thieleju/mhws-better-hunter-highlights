@@ -17,12 +17,7 @@
     ],
     "@semantic-release/github",
     {
-      "assets": [
-        {
-          "path": "dist/Better-Hunter-Highlights.zip",
-          "label": "Better-Hunter-Highlights"
-        }
-      ]
+      "assets": "dist/Better-Hunter-Highlights.zip"
     }
   ]
 }
