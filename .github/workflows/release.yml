@@ -16,24 +16,35 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v3
+      - name: Checkout code
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
 
       - name: Install dependencies
         run: npm ci
 
-      - name: Semantic Release Dry Run to get version
+      - name: Semantic Release Dry Run (get next version)
         id: semantic_release
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: npx semantic-release --dry-run
-        # continue-on-error: true
+        run: |
+          # dry-run in eine Datei umleiten
+          npx semantic-release --dry-run > semantic-output.txt
+
+      - name: Extract version
+        id: extract_version
+        run: |
+          VERSION=$(grep -oP 'The next release version is \K[0-9]+\.[0-9]+\.[0-9]+' semantic-output.txt)
+          echo "VERSION=$VERSION" >> $GITHUB_ENV
+          echo "Next version: $VERSION"
 
       - name: Build mod and update version
         env:
-          VERSION: ${{ steps.semantic_release.outputs.nextRelease.version }}
+          VERSION: ${{ env.VERSION }}
         run: npm run build
 
-      - name: Semantic Release Publish
+      - name: Publish Release
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: npx semantic-release
