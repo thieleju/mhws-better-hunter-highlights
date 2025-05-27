@@ -1,8 +1,8 @@
 --
 -- Better Hunter Highlights
 --
--- Logs quest award contributions for all players at the end of a quest
--- Hooks into quest sync and result methods to collect and summarize player awards
+-- Show detailed player awards and damage stats in a REFramework UI window and the hunter highlights sub menus.
+-- Hooks into quest sync and result methods to collect and summarize player awards.
 --
 ---@diagnostic disable: undefined-global, undefined-doc-name
 
@@ -72,7 +72,7 @@ end
 
 -- Log error message
 local function logError(message)
-  logDebug("[Better Hunter Highlights] ERROR: " .. message)
+  logDebug("ERROR: " .. message)
 end
 
 -- Save config to json file in data directory of reframework
