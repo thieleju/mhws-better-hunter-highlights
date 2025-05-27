@@ -48,7 +48,7 @@ local addSubMenuItem                          = subMenuType:get_method(
 local selectedHunterId                        = ""
 local memberAwardStats                        = {}
 local showAwardWindow                         = false
-local config                                  = { enabled = true, debug = true, cache = {} }
+local config                                  = { enabled = true, debug = false, cache = {} }
 
 local AWARD_UNIT                              = { COUNT = 0, TIME = 1, NONE = 2 }
 local SESSION_TYPE                            = { LOBBY = 1, QUEST = 2, LINK = 3 }
@@ -173,7 +173,7 @@ local function extractAwardStats(packet)
       return packet[string.format("award%02d", i)]
     end)
     local meta = getAwardMeta(i - 1)
-    meta.count = raw and math.floor(raw) or 0
+    meta.count = raw or 0
     table.insert(awardsArray, meta)
   end
   return awardsArray
@@ -198,7 +198,7 @@ local function printMemberAwardStats()
   for _, data in pairs(memberAwardStats) do
     local awardsStr = {}
     for _, award in ipairs(data.awards) do
-      table.insert(awardsStr, string.format("%s: %d(%d)", award.name, award.count, award.threshold))
+      table.insert(awardsStr, string.format("%s: %.0f(%d)", award.name, award.count, award.threshold))
     end
     logDebug(string.format("  -> %s(%d): %s", data.username or "unknown", data.memberIndex or -1,
       table.concat(awardsStr, ", ")))
@@ -213,7 +213,7 @@ local function printMemberAwardStats()
 
   -- Print each player's damage and percentage
   for _, data in ipairs(memberAwardStats) do
-    logDebug(string.format("  -> %s(%d): %d dmg (%.2f%%)", data.username or "unknown", data.memberIndex or -1,
+    logDebug(string.format("  -> %s(%d): %.0f dmg (%.2f%%)", data.username or "unknown", data.memberIndex or -1,
       data.damage, data.damagePercentage))
   end
 end
@@ -252,7 +252,7 @@ local function onSyncQuestAwardInfo(args)
 
   local parts = {}
   for _, award in ipairs(statsArray) do
-    table.insert(parts, string.format("(%d|%d)", award.awardId, award.count))
+    table.insert(parts, string.format("(%d|%.2f)", award.awardId, award.count))
   end
   logDebug(string.format("Player %d: Awards: %s", userIndex, table.concat(parts, ", ")))
 end
@@ -405,7 +405,7 @@ local function onRequestSubMenu(args)
       -- check if damage award
       local itemText
       if award.awardId == DAMAGE_AWARD_ID then
-        itemText = string.format("Damage: %d (%.2f%%)", award.count, memberAward.damagePercentage)
+        itemText = string.format("Damage: %.0f (%.2f%%)", award.count, memberAward.damagePercentage)
       else
         -- get explain text but limit to #SUBMENU_CHAR_LIMIT characters
         local explainText = award.explain or ""
@@ -414,13 +414,16 @@ local function onRequestSubMenu(args)
         end
         -- check if time unit
         if award.unit == AWARD_UNIT.TIME then
-          -- change it to format 00'00
-          local minutes = math.floor(award.count / 60)
-          local seconds = award.count % 60
-          itemText = string.format("%s: %02d'%02d", explainText, minutes, seconds)
+          -- change it to format 00'00"00
+          local totalSeconds = award.count
+          local minutes = math.floor(totalSeconds / 60)
+          local seconds = math.floor(totalSeconds % 60)
+          local hundredths = math.floor((totalSeconds - math.floor(totalSeconds)) * 100)
+
+          itemText = string.format("%s: %02d'%02d\"%02d", explainText, minutes, seconds, hundredths)
         else
           -- default to count unit
-          itemText = string.format("%s: %d", explainText, award.count or 0)
+          itemText = string.format("%s: %.0f", explainText, award.count or 0)
         end
       end
       addSubMenuItem:call(subMenu, itemText, guid, guid, true, false, emptyAction)
@@ -609,18 +612,20 @@ re.on_draw_ui(function()
                 -- add percentage if it's the damage award
                 if award and award.awardId == DAMAGE_AWARD_ID then
                   local percent = player.damagePercentage or 0
-                  valueStr = string.format("%d (%.2f%%)", count, percent)
+                  valueStr = string.format("%.0f (%.2f%%)", count, percent)
                 end
 
                 if award.unit == AWARD_UNIT.TIME then
-                  -- change it to format 00'00
-                  local minutes = math.floor(award.count / 60)
-                  local seconds = award.count % 60
-                  valueStr = string.format("%02d'%02d", minutes, seconds)
+                  -- change it to format 00'00"00
+                  local totalSeconds = award.count
+                  local minutes = math.floor(totalSeconds / 60)
+                  local seconds = math.floor(totalSeconds % 60)
+                  local hundredths = math.floor((totalSeconds - math.floor(totalSeconds)) * 100)
+                  valueStr = string.format("%02d'%02d\"%02d", minutes, seconds, hundredths)
                 end
 
                 -- highlight non-zero values
-                if valueStr ~= "0" and valueStr ~= "" and valueStr ~= "00'00" then
+                if valueStr ~= "0" and valueStr ~= "" and valueStr ~= "00'00\"00" then
                   imgui.table_set_bg_color(3, COLORS[playerIndex % #COLORS], imgui.table_get_column_index())
                   imgui.text(valueStr)
                 else
