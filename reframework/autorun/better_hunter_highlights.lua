@@ -457,48 +457,25 @@ local function onIndexChange(args)
     return sdk.PreHookResult.CALL_ORIGINAL
   end
 
-  -- beware: this is a hardcoded path to the text element in the hunter highlights menu. I know this is ugly...
   local panelType = sdk.typeof("via.gui.Panel")
   local textType = sdk.typeof("via.gui.Text")
 
-  local panel1Children = selectedItem:call("getChildren", panelType)
-  if not panel1Children then
-    logError("Panel1Children is nil in onIndexChange.")
-    return sdk.PreHookResult.CALL_ORIGINAL
+  local function getChild(obj, index, childType)
+    if not obj then return nil end
+    local children = obj:call("getChildren", childType)
+    if not children then return nil end
+    return children[index]
   end
-  local panel1Child = panel1Children[2]
-  if not panel1Child then
-    logError("Panel1Child is nil in onIndexChange with #children = " .. tostring(#panel1Children))
-    return sdk.PreHookResult.CALL_ORIGINAL
-  end
-  local panel2Children = panel1Child:call("getChildren", panelType)
-  if not panel2Children then
-    logError("Panel2Children is nil in onIndexChange.")
-    return sdk.PreHookResult.CALL_ORIGINAL
-  end
-  local panel2Child = panel2Children[0]
-  if not panel2Child then
-    logError("Panel2Child is nil in onIndexChange with #children = " .. tostring(#panel2Children))
-    return sdk.PreHookResult.CALL_ORIGINAL
-  end
-  local panel3Children = panel2Child:call("getChildren", panelType)
-  if not panel3Children then
-    logError("Panel3Children is nil in onIndexChange.")
-    return sdk.PreHookResult.CALL_ORIGINAL
-  end
-  local panel3Child = panel3Children[1]
-  if not panel3Child then
-    logError("Panel3Child is nil in onIndexChange with #children = " .. tostring(#panel3Children))
-    return sdk.PreHookResult.CALL_ORIGINAL
-  end
-  local textChildren = panel3Child:call("getChildren", textType)
-  if not textChildren then
-    logError("TextChildren panel3 is nil in onIndexChange.")
-    return sdk.PreHookResult.CALL_ORIGINAL
-  end
-  local textChild = textChildren[0]
+
+  -- this is a hardcoded path to the text element in the hunter highlights menu
+  -- don't know how else to get to the hunter ID text
+  -- selectedItem -> panel[2] -> panel[0] -> panel[1] -> textChild
+  local panel     = getChild(selectedItem, 2, panelType)
+  panel           = getChild(panel, 0, panelType)
+  panel           = getChild(panel, 1, panelType)
+  local textChild = getChild(panel, 0, textType)
+
   if not textChild then
-    logError("TextChild is nil in onIndexChange with #children = " .. tostring(#textChildren))
     return sdk.PreHookResult.CALL_ORIGINAL
   end
   local hunterId = textChild:call("get_Message")
