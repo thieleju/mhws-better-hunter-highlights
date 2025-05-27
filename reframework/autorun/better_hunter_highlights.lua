@@ -341,7 +341,7 @@ end
 --- @param args table Hook arguments
 local function onRequestSubMenu(args)
   if not config.enabled then
-    return sdk.PreHookResult.SKIP_ORIGINAL
+    return sdk.PreHookResult.CALL_ORIGINAL
   end
 
   local owner = sdk.to_managed_object(args[3])
@@ -351,12 +351,12 @@ local function onRequestSubMenu(args)
 
   if subMenu == nil then
     logDebug("requestSubMenu subMenu is nil")
-    return sdk.PreHookResult.SKIP_ORIGINAL
+    return sdk.PreHookResult.CALL_ORIGINAL
   end
 
   -- skip all submenus except the one for parts list
   if owner:get_type_definition():get_full_name() ~= "app.GUI070003PartsList" then
-    return sdk.PreHookResult.SKIP_ORIGINAL
+    return sdk.PreHookResult.CALL_ORIGINAL
   end
 
   local item0 = subMenu:getItem(0)
@@ -390,13 +390,13 @@ local function onRequestSubMenu(args)
 
   if not memberAward then
     logDebug("No member award found for selected hunter ID: " .. tostring(selectedHunterId))
-    return sdk.PreHookResult.SKIP_ORIGINAL
+    return sdk.PreHookResult.CALL_ORIGINAL
   end
 
   local awardCount = memberAward and #memberAward.awards or 0
   if awardCount == 0 then
     logDebug("No awards found for selected hunter ID: " .. tostring(selectedHunterId))
-    return sdk.PreHookResult.SKIP_ORIGINAL
+    return sdk.PreHookResult.CALL_ORIGINAL
   end
 
   -- add a custom item for each award to the sub menu
