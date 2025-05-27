@@ -7,10 +7,18 @@
 !.gitignore
 !README.md
 !LICENSE
+!CHANGELOG.md
 !modinfo.ini
+!package.json
+!package-lock.json
+!.releaserc
 
 !reframework/autorun/better_hunter_highlights.lua
 !assets
 !assets/submenu1.png
 !assets/submenu2.png
 !assets/table.png
+
+!.github
+!.github/workflows
+!.github/workflows/release.yml

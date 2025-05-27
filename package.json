@@ -1,0 +1,13 @@
+{
+  "name": "better-hunter-highlights",
+  "version": "1.0.0",
+  "scripts": {
+    "build": "rm -rf dist && mkdir -p dist && zip -r dist/Better-Hunter-Highlights.zip modinfo.ini reframework/autorun/better_hunter_highlights.lua"
+  },
+  "devDependencies": {
+    "@semantic-release/changelog": "^6.0.3",
+    "@semantic-release/git": "^10.0.1",
+    "@semantic-release/github": "^11.0.3",
+    "semantic-release": "^24.2.5"
+  }
+}
