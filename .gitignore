@@ -10,5 +10,7 @@
 !modinfo.ini
 
 !reframework/autorun/better_hunter_highlights.lua
-!assets/submenu.jpg
+!assets
+!assets/submenu1.png
+!assets/submenu2.png
 !assets/table.png
