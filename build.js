@@ -23,8 +23,13 @@ modinfoContent = modinfoContent.replace(
 fs.writeFileSync(modinfoPath, modinfoContent, 'utf-8');
 console.log(`Updated modinfo.ini to version ${version}`);
 
+const distPath = path.resolve(__dirname, 'dist');
+if (!fs.existsSync(distPath)) {
+  fs.mkdirSync(distPath, { recursive: true });
+}
+
 // create zip archive in the dist directory
-const output = fs.createWriteStream(path.resolve(__dirname, 'dist', 'Better-Hunter-Highlights.zip'));
+const output = fs.createWriteStream(path.join(distPath, 'Better-Hunter-Highlights.zip'));
 const archive = archiver('zip');
 
 output.on('close', () => {
