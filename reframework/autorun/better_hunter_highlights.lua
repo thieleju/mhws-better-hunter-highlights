@@ -14,12 +14,14 @@ local messageUtilType                         = sdk.find_type_definition("app.Me
 local subMenuType                             = sdk.find_type_definition("app.cGUISubMenuInfo")
 local guidType                                = sdk.find_type_definition("System.Guid")
 local guiManagerType                          = sdk.find_type_definition("app.GUIManager")
+local guiInputCtrlFluentScrollListType        = sdk.find_type_definition(
+  "ace.cGUIInputCtrl_FluentScrollList`2<app.GUIID.ID,app.GUIFunc.TYPE>")
 -- local gui070003PartsList                      = sdk.find_type_definition("app.GUI070003PartsList")
 -- local guiBaseAppType                          = sdk.find_type_definition("app.GUIBaseApp")
 -- local guiUtilAppType                          = sdk.find_type_definition("app.GUIUtilApp")
 -- local gui040301                               = sdk.find_type_definition("app.GUI040301")
-local guiInputCtrlFluentScrollListType        = sdk.find_type_definition(
-  "ace.cGUIInputCtrl_FluentScrollList`2<app.GUIID.ID,app.GUIFunc.TYPE>")
+local panelType                               = sdk.typeof("via.gui.Panel")
+local textType                                = sdk.typeof("via.gui.Text")
 
 -- methods to hook
 local syncQuestAwardInfo                      = cQuestDirectorType:get_method("syncQuestAwardInfo")
@@ -457,9 +459,11 @@ local function onIndexChange(args)
     return sdk.PreHookResult.CALL_ORIGINAL
   end
 
-  local panelType = sdk.typeof("via.gui.Panel")
-  local textType = sdk.typeof("via.gui.Text")
-
+  -- get the child elements of the selected item at the specified index
+  ---@param obj any The parent object to get children from
+  ---@param index number The index of the child to retrieve
+  ---@param childType any The type of the child to retrieve
+  ---@return any The child object at the specified index, or nil if not found
   local function getChild(obj, index, childType)
     if not obj then return nil end
     local children = obj:call("getChildren", childType)
@@ -469,7 +473,7 @@ local function onIndexChange(args)
 
   -- this is a hardcoded path to the text element in the hunter highlights menu
   -- don't know how else to get to the hunter ID text
-  -- selectedItem -> panel[2] -> panel[0] -> panel[1] -> textChild
+  -- selectedItem -> panel[2] -> panel[0] -> panel[1] -> textChild[0]
   local panel     = getChild(selectedItem, 2, panelType)
   panel           = getChild(panel, 0, panelType)
   panel           = getChild(panel, 1, panelType)
@@ -635,18 +639,16 @@ end)
 
 -- Game Function Hooks
 
-if config.enabled then
-  -- Called multiple times per quest, updates playerstats object every time
-  registerHook(syncQuestAwardInfo, onSyncQuestAwardInfo, nil)
+-- Called multiple times per quest, updates playerstats object every time
+registerHook(syncQuestAwardInfo, onSyncQuestAwardInfo, nil)
 
-  -- Called when entering quest reward state, prints stats if host
-  registerHook(enterQuestReward, onEnterQuestReward, nil)
+-- Called when entering quest reward state, prints stats if host
+registerHook(enterQuestReward, onEnterQuestReward, nil)
 
-  -- Called when opening a sub-menu, adds custom items
-  registerHook(guiManagerRequestSubMenu, onRequestSubMenu, nil)
+-- Called when opening a sub-menu, adds custom items
+registerHook(guiManagerRequestSubMenu, onRequestSubMenu, nil)
 
-  -- Called when a fluent scroll list index changes, used to update the selected index in the hunter highlights menu
-  registerHook(guiInputCtrlFluentScrollListIndexChange, onIndexChange, nil)
-end
+-- Called when a fluent scroll list index changes, used to update the selected index in the hunter highlights menu
+registerHook(guiInputCtrlFluentScrollListIndexChange, onIndexChange, nil)
 
 logDebug("Better Hunter Highlights initialized successfully!")
