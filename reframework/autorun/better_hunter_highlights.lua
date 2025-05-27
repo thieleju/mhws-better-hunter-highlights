@@ -297,11 +297,18 @@ local function onEnterQuestReward(args)
     return
   end
 
+  -- trim memberAwardStats according to final member count (memberNum)
+  for i = #memberAwardStats, memberNum + 1, -1 do
+    logDebug(string.format("Removing memberAwardStats[%d] for exceeding memberNum %d", i, memberNum))
+    memberAwardStats[i] = nil
+  end
+
   -- Calculate total damage for percentage calculation
   local totalDamage = 0
   for _, data in ipairs(memberAwardStats) do
     totalDamage = totalDamage + getDamageCount(data.awards)
   end
+
   -- complete memberAwardStats with user info and damage stats
   for i = 0, memberNum - 1 do
     logDebug(string.format("Member %s is at index %d", userInfoArray[i]:get_PlName(), i + 1))
