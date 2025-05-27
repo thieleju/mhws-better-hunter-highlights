@@ -54,6 +54,7 @@ local AWARD_UNIT                              = { COUNT = 0, TIME = 1, NONE = 2 
 local SESSION_TYPE                            = { LOBBY = 1, QUEST = 2, LINK = 3 }
 local CONFIG_PATH                             = "better_hunter_highlights.json"
 local DAMAGE_AWARD_ID                         = 4
+local SUBMENU_CHAR_LIMIT                      = 35
 local COLORS                                  = {
   0x50e580f5, -- pink
   0x500000ff, -- red
@@ -71,7 +72,7 @@ end
 
 -- Log error message
 local function logError(message)
-  log.debug("[Better Hunter Highlights] ERROR: " .. message)
+  logDebug("[Better Hunter Highlights] ERROR: " .. message)
 end
 
 -- Save config to json file in data directory of reframework
@@ -406,18 +407,24 @@ local function onRequestSubMenu(args)
       if award.awardId == DAMAGE_AWARD_ID then
         itemText = string.format("Damage: %d (%.2f%%)", award.count, memberAward.damagePercentage)
       else
+        -- get explain text but limit to #SUBMENU_CHAR_LIMIT characters
+        local explainText = award.explain or ""
+        if #explainText > SUBMENU_CHAR_LIMIT then
+          explainText = explainText:sub(1, SUBMENU_CHAR_LIMIT) .. "..."
+        end
         -- check if time unit
         if award.unit == AWARD_UNIT.TIME then
-          -- bring it in format 00'00
+          -- change it to format 00'00
           local minutes = math.floor(award.count / 60)
           local seconds = award.count % 60
-          itemText = string.format("%s: %02d'%02d\"", award.name, minutes, seconds)
+          itemText = string.format("%s: %02d'%02d", explainText, minutes, seconds)
         else
           -- default to count unit
-          itemText = string.format("%s: %d", award.name, award.count or 0)
+          itemText = string.format("%s: %d", explainText, award.count or 0)
         end
       end
       addSubMenuItem:call(subMenu, itemText, guid, guid, true, false, emptyAction)
+      logDebug(string.format("Added sub menu item: %s (ID: %d)", itemText, award.awardId))
     end
   end
 
@@ -605,8 +612,15 @@ re.on_draw_ui(function()
                   valueStr = string.format("%d (%.2f%%)", count, percent)
                 end
 
+                if award.unit == AWARD_UNIT.TIME then
+                  -- change it to format 00'00
+                  local minutes = math.floor(award.count / 60)
+                  local seconds = award.count % 60
+                  valueStr = string.format("%02d'%02d", minutes, seconds)
+                end
+
                 -- highlight non-zero values
-                if valueStr ~= "0" and valueStr ~= "" then
+                if valueStr ~= "0" and valueStr ~= "" and valueStr ~= "00'00" then
                   imgui.table_set_bg_color(3, COLORS[playerIndex % #COLORS], imgui.table_get_column_index())
                   imgui.text(valueStr)
                 else
