@@ -206,11 +206,6 @@ local function printMemberAwardStats()
 
   logDebug(" --- Damage to Main Target Large Monster ---")
 
-  -- Sort memberAwardStats by damage count
-  table.sort(memberAwardStats, function(a, b)
-    return getDamageCount(a.awards) > getDamageCount(b.awards)
-  end)
-
   -- Print each player's damage and percentage
   for _, data in ipairs(memberAwardStats) do
     logDebug(string.format("  -> %s(%d): %.0f dmg (%.2f%%)", data.username or "unknown", data.memberIndex or -1,
@@ -388,13 +383,6 @@ local function onRequestSubMenu(args)
     logDebug("No awards found for selected hunter ID: " .. tostring(selectedHunterId))
     return sdk.PreHookResult.SKIP_ORIGINAL
   end
-
-  -- sort awards list to ensure damage award is first
-  table.sort(memberAward.awards, function(a, b)
-    if a.awardId == DAMAGE_AWARD_ID then return true end
-    if b.awardId == DAMAGE_AWARD_ID then return false end
-    return a.awardId < b.awardId
-  end)
 
   -- add a custom item for each award to the sub menu
   for i = 1, awardCount do
