@@ -1,3 +1,10 @@
+## [1.2.2](https://github.com/thieleju/mhws-better-hunter-highlights/compare/v1.2.1...v1.2.2) (2025-05-27)
+
+
+### Bug Fixes
+
+* update warning about inaccurate stats ([1ba1ff0](https://github.com/thieleju/mhws-better-hunter-highlights/commit/1ba1ff03c1059006e2bf1a2d36c69dafd949c726))
+
 ## [1.2.1](https://github.com/thieleju/mhws-better-hunter-highlights/compare/v1.2.0...v1.2.1) (2025-05-27)
 
 
