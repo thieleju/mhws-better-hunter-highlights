@@ -1,3 +1,10 @@
+## [1.2.3](https://github.com/thieleju/mhws-better-hunter-highlights/compare/v1.2.2...v1.2.3) (2025-05-27)
+
+
+### Bug Fixes
+
+* add check for semantic-output.txt existence before extracting version ([5faa22a](https://github.com/thieleju/mhws-better-hunter-highlights/commit/5faa22abc6cf29ffef85d7a6a2a971d783d86605))
+
 ## [1.2.2](https://github.com/thieleju/mhws-better-hunter-highlights/compare/v1.2.1...v1.2.2) (2025-05-27)
 
 
