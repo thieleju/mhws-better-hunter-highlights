@@ -50,7 +50,7 @@ local addSubMenuItem                          = subMenuType:get_method(
 local selectedHunterId                        = ""
 local memberAwardStats                        = {}
 local showAwardWindow                         = false
-local config                                  = { enabled = true, debug = false, cache = {} }
+local config                                  = { enabled = true, debug = false, hideDamageNumbers = false, cache = {} }
 
 local AWARD_UNIT                              = { COUNT = 0, TIME = 1, NONE = 2 }
 local SESSION_TYPE                            = { LOBBY = 1, QUEST = 2, LINK = 3 }
@@ -408,6 +408,11 @@ local function onRequestSubMenu(args)
       -- check if damage award
       local itemText
       if award.awardId == DAMAGE_AWARD_ID then
+        if config.hideDamageNumbers then
+          logDebug("Skipping damage number display for hunter ID: " .. selectedHunterId)
+          goto continue
+        end
+
         itemText = string.format("Damage: %.0f (%.2f%%)", award.count, memberAward.damagePercentage)
       else
         -- get explain text but limit to #SUBMENU_CHAR_LIMIT characters
@@ -432,6 +437,8 @@ local function onRequestSubMenu(args)
       addSubMenuItem:call(subMenu, itemText, guid, guid, true, false, emptyAction)
       logDebug(string.format("Added sub menu item: %s (ID: %d)", itemText, award.awardId))
     end
+
+    ::continue::
   end
 
   return sdk.PreHookResult.CALL_ORIGINAL
@@ -511,6 +518,13 @@ re.on_draw_ui(function()
     if not config.enabled then
       imgui.tree_pop()
       return
+    end
+
+
+    -- checkbox to hide damage numbers
+    if imgui.checkbox("Hide Damage Numbers", config.hideDamageNumbers) then
+      config.hideDamageNumbers = not config.hideDamageNumbers
+      logDebug("Config set hideDamageNumbers to " .. tostring(config.hideDamageNumbers))
     end
 
     imgui.indent(20)
@@ -593,8 +607,13 @@ re.on_draw_ui(function()
 
                 -- add percentage if it's the damage award
                 if award and award.awardId == DAMAGE_AWARD_ID then
-                  local percent = player.damagePercentage or 0
-                  valueStr = string.format("%.0f (%.2f%%)", count, percent)
+                  -- check if config.hideDamageNumbers is enabled and skip this iteration if so
+                  if config.hideDamageNumbers then
+                    valueStr = "<hidden>"
+                  else
+                    local percent = player.damagePercentage or 0
+                    valueStr = string.format("%.0f (%.2f%%)", count, percent)
+                  end
                 end
 
                 if award.unit == AWARD_UNIT.TIME then
@@ -607,7 +626,7 @@ re.on_draw_ui(function()
                 end
 
                 -- highlight non-zero values
-                if valueStr ~= "0" and valueStr ~= "" and valueStr ~= "00'00\"00" then
+                if valueStr ~= "0" and valueStr ~= "" and valueStr ~= "00'00\"00" and valueStr ~= "<hidden>" then
                   imgui.table_set_bg_color(3, COLORS[playerIndex % #COLORS], imgui.table_get_column_index())
                   imgui.text(valueStr)
                 else
