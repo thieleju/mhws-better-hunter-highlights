@@ -1,8 +1,7 @@
 # Better Hunter Highlights - Monster Hunter Wilds Mod
 
 > [!WARNING]
-> Stats are only accurate if you are the quest host. Otherwise some stats may be inaccurate.
-> Stats known to be inaccurate when you are not the host: Offsets, Buffs and Heals applied, Power Clashes
+> The "Support All-Star | Buffs and Heals Applied" highlight is currently not working and set to 0.
 
 ## Features
 - REFramework UI table with detailed Hunter Highlight information
