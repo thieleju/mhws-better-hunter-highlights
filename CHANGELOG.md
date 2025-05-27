@@ -1,3 +1,10 @@
+## [1.1.2](https://github.com/thieleju/mhws-better-hunter-highlights/compare/v1.1.1...v1.1.2) (2025-05-27)
+
+
+### Bug Fixes
+
+* add build dir to .gitignore ([2e2a824](https://github.com/thieleju/mhws-better-hunter-highlights/commit/2e2a82483e05f8000821a4811ba1cfc15685d6dc))
+
 ## [1.1.1](https://github.com/thieleju/mhws-better-hunter-highlights/compare/v1.1.0...v1.1.1) (2025-05-27)
 
 
