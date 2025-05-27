@@ -299,6 +299,12 @@ local function onEnterQuestReward(args)
     return
   end
 
+  -- skip updating memberAwardStats if singleplayer
+  if memberNum <= 1 then
+    logDebug("Singleplayer detected, skipping memberAwardStats update.")
+    return sdk.PreHookResult.CALL_ORIGINAL
+  end
+
   -- trim memberAwardStats according to final member count (memberNum)
   for i = #memberAwardStats, memberNum + 1, -1 do
     logDebug(string.format("Removing memberAwardStats[%d] for exceeding memberNum %d", i, memberNum))
