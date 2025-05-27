@@ -14,3 +14,10 @@
 ## Installation
 - Make sure the `better_hunter_highlights.lua` script is in `reframework/autorun` directory
 
+## Submenu
+
+![submenu](./assets/submenu.jpg)
+
+## Table
+
+![table](./assets/table.png)
