@@ -141,7 +141,8 @@ local function getAwardMeta(awardId)
   return {
     awardId = awardId,
     name = guidToText(nameGuid, "Award"),
-    explain = guidToText(explainGuid, "Explain"),
+    -- replace all \r\n with spaces
+    explain = string.gsub(guidToText(explainGuid, "Explain"), "\r\n", " "),
     threshold = threshold,
     unit = unit,
     weight = weight,
@@ -406,7 +407,7 @@ local function onRequestSubMenu(args)
         -- get explain text but limit to #SUBMENU_CHAR_LIMIT characters
         local explainText = award.explain or ""
         if #explainText > SUBMENU_CHAR_LIMIT then
-          explainText = explainText:sub(1, SUBMENU_CHAR_LIMIT) .. "..."
+          explainText = string.format("%s...", explainText:sub(1, SUBMENU_CHAR_LIMIT))
         end
         -- check if time unit
         if award.unit == AWARD_UNIT.TIME then
