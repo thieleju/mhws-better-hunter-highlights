@@ -159,8 +159,13 @@ local function extractAwardStats(packet)
   local award01Count = safeCall(function()
     local award01Array = packet["award01"]
     if not award01Array then return 0 end
-    -- sum up all 4 elements of the array (It's always 4)
-    return award01Array:get_Item(0) + award01Array:get_Item(1) + award01Array:get_Item(2) + award01Array:get_Item(3)
+    -- TODO: What is happing with award01? it makes 0 sense
+    -- print all 4 award01 element values
+    logDebug(string.format("===> award01 values: %d, %d, %d, %d",
+      award01Array:get_Item(0), award01Array:get_Item(1),
+      award01Array:get_Item(2), award01Array:get_Item(3)))
+    -- return 0 for now
+    return 0
   end)
 
   -- insert award01
