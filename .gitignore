@@ -12,6 +12,8 @@
 !package.json
 !package-lock.json
 !.releaserc
+!dist
+!dist/Better-Hunter-Highlights.zip
 
 !reframework/autorun/better_hunter_highlights.lua
 !assets
