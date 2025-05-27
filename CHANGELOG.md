@@ -1,3 +1,10 @@
+## [1.1.3](https://github.com/thieleju/mhws-better-hunter-highlights/compare/v1.1.2...v1.1.3) (2025-05-27)
+
+
+### Bug Fixes
+
+* correct syntax for GitHub plugin configuration in .releaserc ([19127a1](https://github.com/thieleju/mhws-better-hunter-highlights/commit/19127a1df6146f5b6b8843780d17fb310a263973))
+
 ## [1.1.2](https://github.com/thieleju/mhws-better-hunter-highlights/compare/v1.1.1...v1.1.2) (2025-05-27)
 
 
