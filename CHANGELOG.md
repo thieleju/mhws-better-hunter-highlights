@@ -1,3 +1,12 @@
+## [1.2.1](https://github.com/thieleju/mhws-better-hunter-highlights/compare/v1.2.0...v1.2.1) (2025-05-27)
+
+
+### Bug Fixes
+
+* disable counting award01 as long as it's not working ([0193a4e](https://github.com/thieleju/mhws-better-hunter-highlights/commit/0193a4ef5a7175709e55756d6f73f92d0c146bb5))
+* remove sorting of awards list in onRequestSubMenu function ([6a419d0](https://github.com/thieleju/mhws-better-hunter-highlights/commit/6a419d02c4c12c58ab510017aa624282bf741ca4))
+* trim memberAwardStats based on final member count ([8597756](https://github.com/thieleju/mhws-better-hunter-highlights/commit/8597756d44e9ef36b42abd5954d8fb6e61db24d5))
+
 # [1.2.0](https://github.com/thieleju/mhws-better-hunter-highlights/compare/v1.1.3...v1.2.0) (2025-05-27)
 
 
