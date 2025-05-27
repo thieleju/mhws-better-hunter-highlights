@@ -16,7 +16,8 @@
 
 ## Submenu
 
-![submenu](./assets/submenu.jpg)
+![submenu1](./assets/submenu1.png)
+![submenu2](./assets/submenu2.png)
 
 ## Table
 
