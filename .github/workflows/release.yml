@@ -23,8 +23,10 @@ jobs:
 
       - name: Semantic Release Dry Run to get version
         id: semantic_release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: npx semantic-release --dry-run
-        continue-on-error: true
+        # continue-on-error: true
 
       - name: Build mod and update version
         env:
@@ -32,4 +34,6 @@ jobs:
         run: npm run build
 
       - name: Semantic Release Publish
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: npx semantic-release
