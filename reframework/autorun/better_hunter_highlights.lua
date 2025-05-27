@@ -384,6 +384,14 @@ local function onRequestSubMenu(args)
     return sdk.PreHookResult.SKIP_ORIGINAL
   end
 
+
+  -- sort awards list to ensure damage award is first
+  table.sort(memberAward.awards, function(a, b)
+    if a.awardId == DAMAGE_AWARD_ID then return true end
+    if b.awardId == DAMAGE_AWARD_ID then return false end
+    return a.awardId < b.awardId
+  end)
+
   -- add a custom item for each award to the sub menu
   for i = 1, awardCount do
     local award = memberAward.awards[i]
