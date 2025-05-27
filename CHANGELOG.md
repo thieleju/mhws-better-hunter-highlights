@@ -1,3 +1,10 @@
+## [1.2.4](https://github.com/thieleju/mhws-better-hunter-highlights/compare/v1.2.3...v1.2.4) (2025-05-27)
+
+
+### Bug Fixes
+
+* other submenu elements not working due to SKIP_ORIGINAL ([2d3148a](https://github.com/thieleju/mhws-better-hunter-highlights/commit/2d3148aa1da8631c67a9feb0799e464c4674ba50))
+
 ## [1.2.3](https://github.com/thieleju/mhws-better-hunter-highlights/compare/v1.2.2...v1.2.3) (2025-05-27)
 
 
