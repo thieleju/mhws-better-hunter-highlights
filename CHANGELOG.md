@@ -1,3 +1,10 @@
+## [1.3.1](https://github.com/thieleju/mhws-better-hunter-highlights/compare/v1.3.0...v1.3.1) (2025-05-27)
+
+
+### Bug Fixes
+
+* fix issue where highlights table would update in single player mode ([e767073](https://github.com/thieleju/mhws-better-hunter-highlights/commit/e767073cb233becc4aba345785659f7c078b760f))
+
 # [1.3.0](https://github.com/thieleju/mhws-better-hunter-highlights/compare/v1.2.4...v1.3.0) (2025-05-27)
 
 
