@@ -1,8 +1,5 @@
 # Better Hunter Highlights - Monster Hunter Wilds Mod
 
-> [!WARNING]
-> The "Support All-Star | Buffs and Heals Applied" highlight is currently not working and set to 0.
-
 ## Features
 - REFramework UI table with detailed Hunter Highlight information
 - Hunter Highlights added to the quest result sub menus
