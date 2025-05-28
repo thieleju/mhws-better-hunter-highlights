@@ -1,3 +1,10 @@
+## [1.3.2](https://github.com/thieleju/mhws-better-hunter-highlights/compare/v1.3.1...v1.3.2) (2025-05-28)
+
+
+### Bug Fixes
+
+* change hooked method due to SF update ([52ce164](https://github.com/thieleju/mhws-better-hunter-highlights/commit/52ce164792853532121ca418d8ebe6079440264f))
+
 ## [1.3.1](https://github.com/thieleju/mhws-better-hunter-highlights/compare/v1.3.0...v1.3.1) (2025-05-27)
 
 
