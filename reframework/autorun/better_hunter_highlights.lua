@@ -8,7 +8,8 @@
 
 -- types
 local cQuestRewardType                        = sdk.find_type_definition("app.cQuestReward")
-local cQuestDirectorType                      = sdk.find_type_definition("app.cQuestDirector")
+-- local cQuestDirectorType                      = sdk.find_type_definition("app.cQuestDirector")
+local cQuestFlowParamType                     = sdk.find_type_definition("app.cQuestFlowParam")
 local questDefType                            = sdk.find_type_definition("app.QuestDef")
 local messageUtilType                         = sdk.find_type_definition("app.MessageUtil")
 local subMenuType                             = sdk.find_type_definition("app.cGUISubMenuInfo")
@@ -24,7 +25,7 @@ local panelType                               = sdk.typeof("via.gui.Panel")
 local textType                                = sdk.typeof("via.gui.Text")
 
 -- methods to hook
-local syncQuestAwardInfo                      = cQuestDirectorType:get_method("syncQuestAwardInfo")
+local setSharedQuestAwardInfo                 = cQuestFlowParamType:get_method("setSharedQuestAwardInfo")
 local enterQuestReward                        = cQuestRewardType:get_method("enter()")
 local guiManagerRequestSubMenu                = guiManagerType:get_method("requestSubMenu")
 local guiInputCtrlFluentScrollListIndexChange = guiInputCtrlFluentScrollListType:get_method(
@@ -151,7 +152,7 @@ local function getAwardMeta(awardId)
   }
 end
 
---- Extracts awardsArray from a sync packet
+--- Extracts awardsArray from a cQuestAwardSync packet
 --- @param packet userdata The cQuestAwardSync packet
 --- @return table[] Table of awardId to awardsArray
 local function extractAwardStats(packet)
@@ -221,10 +222,10 @@ local function printMemberAwardStats()
   end
 end
 
---- Handler for syncQuestAwardInfo hook
+--- Handler for setSharedQuestAwardInfo hook
 --- @param args table Hook arguments
 --- @return sdk.PreHookResult|nil
-local function onSyncQuestAwardInfo(args)
+local function onSetSharedQuestAwardInfo(args)
   if not config.enabled then
     return sdk.PreHookResult.CALL_ORIGINAL
   end
@@ -664,10 +665,10 @@ end)
 
 -- Game Function Hooks
 
--- Called multiple times per quest, updates playerstats object every time
-registerHook(syncQuestAwardInfo, onSyncQuestAwardInfo, nil)
+-- Called multiple times per quest, updates memberAwardStats object every time
+registerHook(setSharedQuestAwardInfo, onSetSharedQuestAwardInfo, nil)
 
--- Called when entering quest reward state, prints stats if host
+-- Called when entering quest reward state, updates memberAwardStats object with final stats
 registerHook(enterQuestReward, onEnterQuestReward, nil)
 
 -- Called when opening a sub-menu, adds custom items
