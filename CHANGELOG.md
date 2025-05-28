@@ -1,3 +1,10 @@
+## [1.3.5](https://github.com/thieleju/mhws-better-hunter-highlights/compare/v1.3.4...v1.3.5) (2025-05-28)
+
+
+### Bug Fixes
+
+* add button to clear cached data to prevent backward compatibility issues with old config versions ([0f8d712](https://github.com/thieleju/mhws-better-hunter-highlights/commit/0f8d712a7fc12da7352187af8ce0df287cb54021))
+
 ## [1.3.4](https://github.com/thieleju/mhws-better-hunter-highlights/compare/v1.3.3...v1.3.4) (2025-05-28)
 
 
