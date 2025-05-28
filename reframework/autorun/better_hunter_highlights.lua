@@ -7,13 +7,12 @@
 ---@diagnostic disable: undefined-global, undefined-doc-name
 
 -- types
+local guidType                                = sdk.find_type_definition("System.Guid")
 local cQuestRewardType                        = sdk.find_type_definition("app.cQuestReward")
--- local cQuestDirectorType                      = sdk.find_type_definition("app.cQuestDirector")
 local cQuestFlowParamType                     = sdk.find_type_definition("app.cQuestFlowParam")
 local questDefType                            = sdk.find_type_definition("app.QuestDef")
 local messageUtilType                         = sdk.find_type_definition("app.MessageUtil")
 local subMenuType                             = sdk.find_type_definition("app.cGUISubMenuInfo")
-local guidType                                = sdk.find_type_definition("System.Guid")
 local guiManagerType                          = sdk.find_type_definition("app.GUIManager")
 local guiInputCtrlFluentScrollListType        = sdk.find_type_definition(
   "ace.cGUIInputCtrl_FluentScrollList`2<app.GUIID.ID,app.GUIFunc.TYPE>")
@@ -28,8 +27,7 @@ local textType                                = sdk.typeof("via.gui.Text")
 local setSharedQuestAwardInfo                 = cQuestFlowParamType:get_method("setSharedQuestAwardInfo")
 local enterQuestReward                        = cQuestRewardType:get_method("enter()")
 local guiManagerRequestSubMenu                = guiManagerType:get_method("requestSubMenu")
-local guiInputCtrlFluentScrollListIndexChange = guiInputCtrlFluentScrollListType:get_method(
-  "getSelectedIndex")
+local guiInputCtrlFluentScrollListIndexChange = guiInputCtrlFluentScrollListType:get_method("getSelectedIndex")
 -- local updateListItem = gui070003PartsList:get_method("updateListItem")
 
 -- utility methods
@@ -159,21 +157,14 @@ local function extractAwardStats(packet)
   local awardsArray = {}
 
   -- award01 is special case, its type is System.UInt32[]
-  local award01Count = safeCall(function()
-    local award01Array = packet["award01"]
-    if not award01Array then return 0 end
-    -- TODO: What is happing with award01? it makes 0 sense
-    -- print all 4 award01 element values
-    logDebug(string.format("===> award01 values: %d, %d, %d, %d",
-      award01Array:get_Item(0), award01Array:get_Item(1),
-      award01Array:get_Item(2), award01Array:get_Item(3)))
-    -- return 0 for now
-    return 0
-  end)
-
-  -- insert award01
   local meta0 = getAwardMeta(0)
-  meta0.count = award01Count
+  meta0.count = 0
+  meta0.award01Array = {
+    packet["award01"]:get_Item(0),
+    packet["award01"]:get_Item(1),
+    packet["award01"]:get_Item(2),
+    packet["award01"]:get_Item(3)
+  }
   table.insert(awardsArray, meta0)
 
   -- awards 02 to 30
@@ -318,9 +309,12 @@ local function onEnterQuestReward(args)
     totalDamage = totalDamage + getDamageCount(data.awards)
   end
 
+  -- calculate award01 data for each member
+  local award01DataSum = { 0, 0, 0, 0 }
+
   -- complete memberAwardStats with user info and damage stats
   for i = 0, memberNum - 1 do
-    logDebug(string.format("Member %s is at index %d", userInfoArray[i]:get_PlName(), i + 1))
+    logDebug(string.format("Member %s is at index %d", userInfoArray[i]:get_PlName(), i))
     local entry = memberAwardStats[i + 1] or { memberIndex = i, awards = {} }
     local damage = getDamageCount(entry.awards)
     local damagePercentage = totalDamage > 0 and (damage / totalDamage) * 100 or 0
@@ -332,8 +326,30 @@ local function onEnterQuestReward(args)
     entry.damagePercentage = damagePercentage
     entry.damage = damage
 
+    -- get award01 data
+    local award01 = entry.awards[1] or {}
+    if not award01.award01Array then
+      award01.award01Array = { 0, 0, 0, 0 }
+    end
+    -- add award01 data for each member to total award01DataSum
+    for j = 1, 4 do
+      award01DataSum[j] = award01DataSum[j] + award01.award01Array[j]
+    end
+
     memberAwardStats[i + 1] = entry
   end
+
+  -- apply the total award01 data to each member
+  for i = 1, #memberAwardStats do
+    local entry = memberAwardStats[i]
+    local award01 = entry.awards[1] or {}
+    award01.count = award01DataSum[i] or 0
+    entry.awards[1] = award01
+  end
+
+  -- log final award01DataSum array
+  logDebug(string.format("Final award01DataSum: [%d, %d, %d, %d]", award01DataSum[1], award01DataSum[2],
+    award01DataSum[3], award01DataSum[4]))
 
   -- Print all member award stats with dmg table
   printMemberAwardStats()
@@ -354,12 +370,12 @@ local function onRequestSubMenu(args)
   local owner = sdk.to_managed_object(args[3])
   local subMenu = sdk.to_managed_object(args[4])
 
-  logDebug("RequestSubMenu called for " .. tostring(owner:get_type_definition():get_full_name()))
-
   if subMenu == nil then
     logDebug("requestSubMenu subMenu is nil")
     return sdk.PreHookResult.CALL_ORIGINAL
   end
+
+  logDebug("RequestSubMenu called for " .. tostring(owner:get_type_definition():get_full_name()))
 
   -- skip all submenus except the one for parts list
   if owner:get_type_definition():get_full_name() ~= "app.GUI070003PartsList" then
@@ -371,14 +387,8 @@ local function onRequestSubMenu(args)
   local item2 = subMenu:getItem(2)
 
   item0:clear()
-  item0:set_IsEnable(true)
-  item0:set_IsChecked(true)
   item1:clear()
-  item1:set_IsEnable(true)
-  item1:set_IsChecked(true)
   item2:clear()
-  item2:set_IsEnable(true)
-  item2:set_IsChecked(true)
 
   local emptyAction = sdk.create_instance(sdk.typeof("System.Action"))
   item0:set_ExecuteAction(emptyAction)
@@ -406,12 +416,14 @@ local function onRequestSubMenu(args)
     return sdk.PreHookResult.CALL_ORIGINAL
   end
 
+  local submenuItemCount = 0
+  local guid = newGuid:call(nil)
+
   -- add a custom item for each award to the sub menu
   for i = 1, awardCount do
     local award = memberAward.awards[i]
     -- skip awards that are 0
     if award and award.count and award.count > 0 then
-      local guid = newGuid:call(nil)
       -- check if damage award
       local itemText
       if award.awardId == DAMAGE_AWARD_ID then
@@ -419,7 +431,6 @@ local function onRequestSubMenu(args)
           logDebug("Skipping damage number display for hunter ID: " .. selectedHunterId)
           goto continue
         end
-
         itemText = string.format("Damage: %.0f (%.2f%%)", award.count, memberAward.damagePercentage)
       else
         -- get explain text but limit to #SUBMENU_CHAR_LIMIT characters
@@ -442,10 +453,16 @@ local function onRequestSubMenu(args)
         end
       end
       addSubMenuItem:call(subMenu, itemText, guid, guid, true, false, emptyAction)
+      submenuItemCount = submenuItemCount + 1
       logDebug(string.format("Added sub menu item: %s (ID: %d)", itemText, award.awardId))
     end
 
     ::continue::
+  end
+
+  -- if no items were added, add a message indicating no valid awards
+  if submenuItemCount == 0 then
+    addSubMenuItem:call(subMenu, "No highlights available", guid, guid, true, false, emptyAction)
   end
 
   return sdk.PreHookResult.CALL_ORIGINAL
