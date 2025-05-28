@@ -39,7 +39,14 @@ jobs:
             echo "semantic-output.txt not found. Aborting workflow."
             exit 0
           fi
-          VERSION=$(grep -oP 'The next release version is \K[0-9]+\.[0-9]+\.[0-9]+' semantic-output.txt)
+
+          VERSION=$(grep -oP 'The next release version is \K[0-9]+\.[0-9]+\.[0-9]+' semantic-output.txt || true)
+
+          if [ -z "$VERSION" ]; then
+            echo "No version found in semantic-output.txt. Aborting."
+            exit 0
+          fi
+
           echo "VERSION=$VERSION" >> $GITHUB_ENV
           echo "Next version: $VERSION"
 
