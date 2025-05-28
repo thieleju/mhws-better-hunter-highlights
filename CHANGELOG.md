@@ -1,3 +1,10 @@
+## [1.3.4](https://github.com/thieleju/mhws-better-hunter-highlights/compare/v1.3.3...v1.3.4) (2025-05-28)
+
+
+### Bug Fixes
+
+* fix error in github workflow ([65c940a](https://github.com/thieleju/mhws-better-hunter-highlights/commit/65c940ac9f2aa6a2b849fc55b646b42a38f941ef))
+
 ## [1.3.3](https://github.com/thieleju/mhws-better-hunter-highlights/compare/v1.3.2...v1.3.3) (2025-05-28)
 
 
