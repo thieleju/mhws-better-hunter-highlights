@@ -86,6 +86,19 @@ end
 local function loadConfig()
   local loaded = json.load_file(CONFIG_PATH)
   if loaded then
+    -- check if loaded config has required fields
+    if type(loaded.enabled) ~= "boolean" then
+      loaded.enabled = true
+    end
+    if type(loaded.debug) ~= "boolean" then
+      loaded.debug = false
+    end
+    if type(loaded.hideDamageNumbers) ~= "boolean" then
+      loaded.hideDamageNumbers = false
+    end
+    if type(loaded.cache) ~= "table" then
+      loaded.cache = {}
+    end
     config = loaded
   else
     saveConfig()
@@ -551,6 +564,12 @@ re.on_draw_ui(function()
       logDebug("Config set hideDamageNumbers to " .. tostring(config.hideDamageNumbers))
     end
 
+
+    -- checkbox for debug mode
+    if imgui.checkbox("Debug Mode", config.debug) then
+      config.debug = not config.debug
+      logDebug("Config set debug mode to " .. tostring(config.debug))
+    end
     imgui.indent(20)
 
     -- Use cached stats if live stats are empty
@@ -565,16 +584,20 @@ re.on_draw_ui(function()
         showAwardWindow = not showAwardWindow
       end
     else
-      imgui.text("No hunter highlights available yet")
+      imgui.text("No hunter highlights data available, complete a multiplayer quest first.")
+    end
+
+    -- show button to clear cached stats
+    if imgui.button("Clear Cached Data") then
+      imgui.same_line()
+      memberAwardStats = {}
+      config.cache = {}
+      saveConfig()
+      logDebug("Cached stats cleared")
     end
 
     imgui.unindent(20)
 
-    -- checkbox for debug mode
-    if imgui.checkbox("Debug Mode", config.debug) then
-      config.debug = not config.debug
-      logDebug("Config set debug mode to " .. tostring(config.debug))
-    end
 
     imgui.tree_pop()
   end
