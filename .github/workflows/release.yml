@@ -36,26 +36,31 @@ jobs:
         id: extract_version
         run: |
           if [ ! -f semantic-output.txt ]; then
-            echo "semantic-output.txt not found. Aborting workflow."
+            echo "semantic-output.txt not found."
+            echo "continue=false" >> $GITHUB_OUTPUT
             exit 0
           fi
 
           VERSION=$(grep -oP 'The next release version is \K[0-9]+\.[0-9]+\.[0-9]+' semantic-output.txt || true)
 
           if [ -z "$VERSION" ]; then
-            echo "No version found in semantic-output.txt. Aborting."
+            echo "No version found in semantic-output.txt."
+            echo "continue=false" >> $GITHUB_OUTPUT
             exit 0
           fi
 
           echo "VERSION=$VERSION" >> $GITHUB_ENV
           echo "Next version: $VERSION"
+          echo "continue=true" >> $GITHUB_OUTPUT
 
       - name: Build mod and update version
+        if: steps.extract_version.outputs.continue == 'true'
         env:
           VERSION: ${{ env.VERSION }}
         run: npm run build
 
       - name: Publish Release
+        if: steps.extract_version.outputs.continue == 'true'
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: npx semantic-release
