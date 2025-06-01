@@ -10,8 +10,8 @@
 local guidType                                = sdk.find_type_definition("System.Guid")
 local cQuestRewardType                        = sdk.find_type_definition("app.cQuestReward")
 local cQuestFlowParamType                     = sdk.find_type_definition("app.cQuestFlowParam")
-local questDefType                            = sdk.find_type_definition("app.QuestDef")
-local messageUtilType                         = sdk.find_type_definition("app.MessageUtil")
+-- local questDefType                            = sdk.find_type_definition("app.QuestDef")
+-- local messageUtilType                         = sdk.find_type_definition("app.MessageUtil")
 local subMenuType                             = sdk.find_type_definition("app.cGUISubMenuInfo")
 local guiManagerType                          = sdk.find_type_definition("app.GUIManager")
 local guiInputCtrlFluentScrollListType        = sdk.find_type_definition(
@@ -31,15 +31,15 @@ local guiInputCtrlFluentScrollListIndexChange = guiInputCtrlFluentScrollListType
 -- local updateListItem = gui070003PartsList:get_method("updateListItem")
 
 -- utility methods
-local getAwardNameHelper                      = questDefType:get_method("Name(app.QuestDef.AwardID)")
-local getAwardExplainHelper                   = questDefType:get_method("Explain(app.QuestDef.AwardID)")
-local getAwardThresholdHelper                 = questDefType:get_method("Threshold(app.QuestDef.AwardID)")
-local getAwardUnitHelper                      = questDefType:get_method("Unit(app.QuestDef.AwardID)")
-local getAwardWeightHelper                    = questDefType:get_method("Weight(app.QuestDef.AwardID)")
-local getTextHelper                           = messageUtilType:get_method("getText(System.Guid, System.Int32)")
 local newGuid                                 = guidType:get_method("NewGuid")
 local addSubMenuItem                          = subMenuType:get_method(
   "addItem(System.String, System.Guid, System.Guid, System.Boolean, System.Boolean, System.Action)")
+-- local getAwardNameHelper                      = questDefType:get_method("Name(app.QuestDef.AwardID)")
+-- local getAwardExplainHelper                   = questDefType:get_method("Explain(app.QuestDef.AwardID)")
+-- local getAwardThresholdHelper                 = questDefType:get_method("Threshold(app.QuestDef.AwardID)")
+-- local getAwardUnitHelper                      = questDefType:get_method("Unit(app.QuestDef.AwardID)")
+-- local getAwardWeightHelper                    = questDefType:get_method("Weight(app.QuestDef.AwardID)")
+-- local getTextHelper                           = messageUtilType:get_method("getText(System.Guid, System.Int32)")
 -- local setMessageApp                           = guiBaseAppType:get_method(
 --   "setMessageApp(via.gui.Text, app.MessageDef.DIRECT, System.String, System.Func`2<System.String,System.String>)")
 -- local setTextColor                            = guiUtilAppType:get_method("setTextColor")
@@ -49,20 +49,49 @@ local addSubMenuItem                          = subMenuType:get_method(
 local selectedHunterId                        = ""
 local memberAwardStats                        = {}
 local showAwardWindow                         = false
-local config                                  = { enabled = true, debug = false, hideDamageNumbers = false, cache = {} }
+local config                                  = { enabled = true, debug = false, cache = {}, displayAwardIds = {} }
 
-local AWARD_UNIT                              = { COUNT = 0, TIME = 1, NONE = 2 }
-local SESSION_TYPE                            = { LOBBY = 1, QUEST = 2, LINK = 3 }
+-- pink, red, yellow, green, gray
+local COLORS                                  = { 0x50e580f5, 0x500000ff, 0x5049cff5, 0x50a4ffa4, 0xCC666666 }
 local CONFIG_PATH                             = "better_hunter_highlights.json"
 local DAMAGE_AWARD_ID                         = 4
 local SUBMENU_CHAR_LIMIT                      = 35
-local COLORS                                  = {
-  0x50e580f5, -- pink
-  0x500000ff, -- red
-  0x5049cff5, -- yellow
-  0x50a4ffa4, -- green
-  0xCC666666, -- gray
+local MIN_TABLE_COLUMN_WIDTH                  = 130
+local AWARD_UNIT                              = { COUNT = 0, TIME = 1, NONE = 2 }
+local SESSION_TYPE                            = { LOBBY = 1, QUEST = 2, LINK = 3 }
+local AWARD_LIST                              = {
+  { awardId = 0,  name = "Support All-Star",          explain = "Buffs and Heals Applied",                                                    unit = AWARD_UNIT.COUNT },
+  { awardId = 1,  name = "Ailment Master",            explain = "Traps Tripped/Ailments Afflicted",                                           unit = AWARD_UNIT.COUNT },
+  { awardId = 2,  name = "Dizzy Pro",                 explain = "Stuns Inflicted",                                                            unit = AWARD_UNIT.COUNT },
+  { awardId = 3,  name = "Target Destroyer",          explain = "Parts Broken",                                                               unit = AWARD_UNIT.COUNT },
+  { awardId = 4,  name = "Established Hunter",        explain = "Damage to Main Target Large Monster",                                        unit = AWARD_UNIT.NONE },
+  { awardId = 5,  name = "Master Mounter",            explain = "Successful Mounts",                                                          unit = AWARD_UNIT.COUNT },
+  { awardId = 6,  name = "Treasure Hunter",           explain = "Rare Items Collected",                                                       unit = AWARD_UNIT.COUNT },
+  { awardId = 7,  name = "Field Researcher",          explain = "Tracks and Traces Examined",                                                 unit = AWARD_UNIT.COUNT },
+  { awardId = 8,  name = "Slinger Sniper",            explain = "Slinger Fired",                                                              unit = AWARD_UNIT.COUNT },
+  { awardId = 9,  name = "Survival Expert",           explain = "Endemic Life/Plant Life Used",                                               unit = AWARD_UNIT.COUNT },
+  { awardId = 10, name = "Tool Specialist",           explain = "Specialized Tool Usage Time",                                                unit = AWARD_UNIT.TIME },
+  { awardId = 11, name = "BBQ King",                  explain = "Meat Cooked",                                                                unit = AWARD_UNIT.COUNT },
+  { awardId = 12, name = "Master Angler",             explain = "Successful Fishing Attempts",                                                unit = AWARD_UNIT.COUNT },
+  { awardId = 13, name = "Beast Master",              explain = "Endemic Life Captured",                                                      unit = AWARD_UNIT.COUNT },
+  { awardId = 14, name = "Stealth Hunter",            explain = "Successful Stealth Attempts",                                                unit = AWARD_UNIT.COUNT },
+  { awardId = 15, name = "Gathering Maniac",          explain = "Times Gathered",                                                             unit = AWARD_UNIT.COUNT },
+  { awardId = 16, name = "Item Addict",               explain = "Items Used",                                                                 unit = AWARD_UNIT.COUNT },
+  { awardId = 17, name = "Obsessed Observer",         explain = "Records in Photo Mode",                                                      unit = AWARD_UNIT.COUNT },
+  { awardId = 18, name = "Hit 'Em Where It Hurts!",   explain = "Number of Focus Strikes on Wounds",                                          unit = AWARD_UNIT.COUNT },
+  { awardId = 19, name = "Beautiful Bombardier",      explain = "Large Barrel Bomb Hits",                                                     unit = AWARD_UNIT.COUNT },
+  { awardId = 20, name = "Social Butterfly",          explain = "Times Communicated",                                                         unit = AWARD_UNIT.COUNT },
+  { awardId = 21, name = "Small Game Monster Hunter", explain = "Small Monsters Slain",                                                       unit = AWARD_UNIT.COUNT },
+  { awardId = 22, name = "Slinger Savant",            explain = "Times Slinger ammo hit a monster's weak point or caused a special reaction", unit = AWARD_UNIT.COUNT },
+  { awardId = 23, name = "Seikret Sidestep",          explain = "Timed Evaded on a Seikret",                                                  unit = AWARD_UNIT.COUNT },
+  { awardId = 24, name = "Perfect Counters",          explain = "Offset Attacks",                                                             unit = AWARD_UNIT.COUNT },
+  { awardId = 25, name = "Glide Master",              explain = "Time Spent Gliding on Seikret",                                              unit = AWARD_UNIT.TIME },
+  { awardId = 26, name = "Dual Wielder",              explain = "Times weapon was changed using the Seikret's weapon sling",                  unit = AWARD_UNIT.COUNT },
+  { awardId = 27, name = "Assassination",             explain = "Sneak Attacks",                                                              unit = AWARD_UNIT.COUNT },
+  { awardId = 28, name = "Weak Point",                explain = "Times a special attack hit a weak point",                                    unit = AWARD_UNIT.COUNT },
+  { awardId = 29, name = "Clasher",                   explain = "Power Clashes",                                                              unit = AWARD_UNIT.COUNT },
 }
+
 
 -- Log debug message
 local function logDebug(message)
@@ -82,6 +111,15 @@ local function saveConfig()
   logDebug("Config saved to " .. CONFIG_PATH)
 end
 
+--- Save default config
+local function saveDefaultConfig()
+  config = { enabled = true, debug = false, cache = {}, displayAwardIds = {} }
+  for _, award in ipairs(AWARD_LIST) do
+    config.displayAwardIds[tostring(award.awardId)] = true
+  end
+  saveConfig()
+end
+
 -- Load existing config or create default
 local function loadConfig()
   local loaded = json.load_file(CONFIG_PATH)
@@ -93,15 +131,24 @@ local function loadConfig()
     if type(loaded.debug) ~= "boolean" then
       loaded.debug = false
     end
-    if type(loaded.hideDamageNumbers) ~= "boolean" then
-      loaded.hideDamageNumbers = false
-    end
     if type(loaded.cache) ~= "table" then
       loaded.cache = {}
     end
+    if type(loaded.displayAwardIds) ~= "table" then
+      loaded.displayAwardIds = {}
+      for _, award in ipairs(AWARD_LIST) do
+        loaded.displayAwardIds[tostring(award.awardId)] = true
+      end
+    end
+    -- migrate hideDamageNumbers to displayAwardIds
+    if loaded.hideDamageNumbers ~= nil then
+      loaded.displayAwardIds[tostring(DAMAGE_AWARD_ID)] = not loaded.hideDamageNumbers
+      loaded.hideDamageNumbers = nil
+    end
+
     config = loaded
   else
-    saveConfig()
+    saveDefaultConfig()
   end
 end
 
@@ -116,92 +163,11 @@ local function safeCall(fn)
   return ok and result or nil
 end
 
---- Get meta information about an award by its awardId
---- @param awardId number The ID of the award
---- @return table Table containing award metadata
-local function getAwardMeta(awardId)
-  -- Helper to resolve GUIDs to text
-  local function guidToText(guid, fallbackPrefix)
-    if not guid then
-      return string.format("%s_%d", fallbackPrefix, awardId)
-    end
-    local text = safeCall(function()
-      return getTextHelper:call(nil, guid, 0)
-    end)
-    return text or string.format("%s_%d", fallbackPrefix, awardId)
-  end
-
-  -- guid return values (name, explain)
-  local nameGuid = safeCall(function()
-    return getAwardNameHelper:call(nil, awardId)
-  end)
-  local explainGuid = safeCall(function()
-    return getAwardExplainHelper:call(nil, awardId)
-  end)
-
-  -- non guid return values (threshold, unit, weight)
-  local threshold = safeCall(function()
-    return getAwardThresholdHelper:call(nil, awardId)
-  end) or -1
-
-  local unit = safeCall(function()
-    return getAwardUnitHelper:call(nil, awardId)
-  end) or -1
-
-  local weight = safeCall(function()
-    return getAwardWeightHelper:call(nil, awardId)
-  end) or -1
-
-  return {
-    awardId = awardId,
-    name = guidToText(nameGuid, "Award"),
-    -- replace all \r\n with spaces
-    explain = string.gsub(guidToText(explainGuid, "Explain"), "\r\n", " "),
-    threshold = threshold,
-    unit = unit,
-    weight = weight,
-  }
-end
-
---- Extracts awardsArray from a cQuestAwardSync packet
---- @param packet userdata The cQuestAwardSync packet
---- @return table[] Table of awardId to awardsArray
-local function extractAwardStats(packet)
-  local awardsArray = {}
-
-  -- award01 is special case, its type is System.UInt32[]
-  local meta0 = getAwardMeta(0)
-  meta0.count = 0
-  meta0.award01Array = {
-    packet["award01"]:get_Item(0),
-    packet["award01"]:get_Item(1),
-    packet["award01"]:get_Item(2),
-    packet["award01"]:get_Item(3)
-  }
-  table.insert(awardsArray, meta0)
-
-  -- awards 02 to 30
-  for i = 2, 30 do
-    local raw = safeCall(function()
-      return packet[string.format("award%02d", i)]
-    end)
-    local meta = getAwardMeta(i - 1)
-    meta.count = raw or 0
-    table.insert(awardsArray, meta)
-  end
-  return awardsArray
-end
-
---- Helper function to get the damage award count by ID
---- @param awards table[] The awards array from a player
---- @return number The count of damage awards
-local function getDamageCount(awards)
-  for _, award in ipairs(awards) do
-    if award.awardId == DAMAGE_AWARD_ID then
-      return award.count or 0
-    end
-  end
-  return 0
+--- Rounds a number to two decimal places
+--- @param value number The value to round
+--- @return number The rounded value
+local function roundToTwoDecimalPlaces(value)
+  return math.floor(value * 100 + 0.5) / 100
 end
 
 --- Prints member award stats and damage to main target table
@@ -211,7 +177,7 @@ local function printMemberAwardStats()
   for _, data in pairs(memberAwardStats) do
     local awardsStr = {}
     for _, award in ipairs(data.awards) do
-      table.insert(awardsStr, string.format("%s: %.0f(%d)", award.name, award.count, award.threshold))
+      table.insert(awardsStr, string.format("%s: %.0f", "TODO NAME", award.count))
     end
     logDebug(string.format("  -> %s(%d): %s", data.username or "unknown", data.memberIndex or -1,
       table.concat(awardsStr, ", ")))
@@ -252,17 +218,49 @@ local function onSetSharedQuestAwardInfo(args)
     return sdk.PreHookResult.CALL_ORIGINAL
   end
 
+  --- Extracts awardsArray from a cQuestAwardSync packet
+  --- @param packet userdata The cQuestAwardSync packet
+  --- @return table[] Table of awardId to awardsArray
+  local function extractAwardStats(packet)
+    local awardsArray = {}
+
+    -- award01 is special case, its type is System.UInt32[]
+    local meta0 = {
+      awardId = 0,
+      count = 0,
+      award01Array = {
+        packet["award01"]:get_Item(0) or 0,
+        packet["award01"]:get_Item(1) or 0,
+        packet["award01"]:get_Item(2) or 0,
+        packet["award01"]:get_Item(3) or 0
+      }
+    }
+    table.insert(awardsArray, meta0)
+
+    -- loop through AWARD_LIST and fill awardsArray
+    for i = 2, #AWARD_LIST do
+      table.insert(awardsArray, {
+        awardId = i - 1,
+        count = packet[string.format("award%02d", i)] or 0,
+      })
+    end
+    return awardsArray
+  end
+
   -- get stats from cQuestAwardSync and update playerstats
   local statsArray = extractAwardStats(cQuestAwardSync)
-  local slot = userIndex + 1
-  memberAwardStats[slot] = memberAwardStats[slot] or { memberIndex = userIndex }
-  memberAwardStats[slot].awards = statsArray
+  memberAwardStats[userIndex + 1] = {
+    memberIndex = userIndex,
+    awards = statsArray
+  }
 
-  local parts = {}
-  for _, award in ipairs(statsArray) do
-    table.insert(parts, string.format("(%d|%.2f)", award.awardId, award.count))
+  if config.debug then
+    local parts = {}
+    for _, award in ipairs(statsArray) do
+      table.insert(parts, string.format("(%d|%.0f)", award.awardId or 0, award.count or 0))
+    end
+    logDebug(string.format("Player %d: Awards: %s", userIndex, table.concat(parts, ", ")))
   end
-  logDebug(string.format("Player %d: Awards: %s", userIndex, table.concat(parts, ", ")))
 end
 
 --- Handler when entering quest reward state
@@ -319,7 +317,7 @@ local function onEnterQuestReward(args)
   -- Calculate total damage for percentage calculation
   local totalDamage = 0
   for _, data in ipairs(memberAwardStats) do
-    totalDamage = totalDamage + getDamageCount(data.awards)
+    totalDamage = totalDamage + (data.awards[DAMAGE_AWARD_ID + 1].count or 0)
   end
 
   -- calculate award01 data for each member
@@ -329,35 +327,29 @@ local function onEnterQuestReward(args)
   for i = 0, memberNum - 1 do
     logDebug(string.format("Member %s is at index %d", userInfoArray[i]:get_PlName(), i))
     local entry = memberAwardStats[i + 1] or { memberIndex = i, awards = {} }
-    local damage = getDamageCount(entry.awards)
+    local damage = entry.awards[DAMAGE_AWARD_ID + 1].count
     local damagePercentage = totalDamage > 0 and (damage / totalDamage) * 100 or 0
 
     entry.username = userInfoArray[i]:get_PlName()
     entry.shortHunterId = userInfoArray[i]:get_ShortHunterId()
     entry.isSelf = userInfoArray[i]:get_IsSelf()
-    entry.damageTotal = totalDamage
-    entry.damagePercentage = damagePercentage
-    entry.damage = damage
+    entry.damageTotal = roundToTwoDecimalPlaces(totalDamage)
+    entry.damagePercentage = roundToTwoDecimalPlaces(damagePercentage)
+    entry.damage = roundToTwoDecimalPlaces(damage)
 
-    -- get award01 data
-    local award01 = entry.awards[1] or {}
-    if not award01.award01Array then
-      award01.award01Array = { 0, 0, 0, 0 }
-    end
     -- add award01 data for each member to total award01DataSum
+    local arr = (entry.awards[1] and entry.awards[1].award01Array) or { 0, 0, 0, 0 }
     for j = 1, 4 do
-      award01DataSum[j] = award01DataSum[j] + award01.award01Array[j]
+      award01DataSum[j] = award01DataSum[j] + arr[j]
     end
 
     memberAwardStats[i + 1] = entry
   end
 
   -- apply the total award01 data to each member
-  for i = 1, #memberAwardStats do
-    local entry = memberAwardStats[i]
-    local award01 = entry.awards[1] or {}
-    award01.count = award01DataSum[i] or 0
-    entry.awards[1] = award01
+  for i, entry in ipairs(memberAwardStats) do
+    entry.awards[1] = entry.awards[1] or { awardId = 0, award01Array = { 0, 0, 0, 0 } }
+    entry.awards[1].count = award01DataSum[i] or 0
   end
 
   -- log final award01DataSum array
@@ -365,7 +357,9 @@ local function onEnterQuestReward(args)
     award01DataSum[3], award01DataSum[4]))
 
   -- Print all member award stats with dmg table
-  printMemberAwardStats()
+  if config.debug then
+    printMemberAwardStats()
+  end
 
   -- Cache the latest memberAwardStats
   config.cache = memberAwardStats
@@ -380,10 +374,14 @@ local function onRequestSubMenu(args)
     return sdk.PreHookResult.CALL_ORIGINAL
   end
 
-  local owner = sdk.to_managed_object(args[3])
-  local subMenu = sdk.to_managed_object(args[4])
+  local owner = safeCall(function() return sdk.to_managed_object(args[3]) end)
+  if not owner then
+    logError("Invalid owner in requestSubMenu.")
+    return sdk.PreHookResult.CALL_ORIGINAL
+  end
 
-  if subMenu == nil then
+  local subMenu = safeCall(function() return sdk.to_managed_object(args[4]) end)
+  if not subMenu then
     logDebug("requestSubMenu subMenu is nil")
     return sdk.PreHookResult.CALL_ORIGINAL
   end
@@ -420,61 +418,81 @@ local function onRequestSubMenu(args)
 
   if not memberAward then
     logDebug("No member award found for selected hunter ID: " .. tostring(selectedHunterId))
+    -- add a message indicating no awards found
+    addSubMenuItem:call(subMenu, "No highlights available", newGuid:call(nil), newGuid:call(nil), true, false,
+      emptyAction)
     return sdk.PreHookResult.CALL_ORIGINAL
   end
 
-  local awardCount = memberAward and #memberAward.awards or 0
-  if awardCount == 0 then
-    logDebug("No awards found for selected hunter ID: " .. tostring(selectedHunterId))
-    return sdk.PreHookResult.CALL_ORIGINAL
-  end
-
-  local submenuItemCount = 0
-  local guid = newGuid:call(nil)
-
-  -- add a custom item for each award to the sub menu
-  for i = 1, awardCount do
-    local award = memberAward.awards[i]
-    -- skip awards that are 0
-    if award and award.count and award.count > 0 then
-      -- check if damage award
-      local itemText
-      if award.awardId == DAMAGE_AWARD_ID then
-        if config.hideDamageNumbers then
-          logDebug("Skipping damage number display for hunter ID: " .. selectedHunterId)
-          goto continue
-        end
-        itemText = string.format("Damage: %.0f (%.2f%%)", award.count, memberAward.damagePercentage)
-      else
-        -- get explain text but limit to #SUBMENU_CHAR_LIMIT characters
-        local explainText = award.explain or ""
-        if #explainText > SUBMENU_CHAR_LIMIT then
-          explainText = string.format("%s...", explainText:sub(1, SUBMENU_CHAR_LIMIT))
-        end
-        -- check if time unit
-        if award.unit == AWARD_UNIT.TIME then
-          -- change it to format 00'00"00
-          local totalSeconds = award.count
-          local minutes = math.floor(totalSeconds / 60)
-          local seconds = math.floor(totalSeconds % 60)
-          local hundredths = math.floor((totalSeconds - math.floor(totalSeconds)) * 100)
-
-          itemText = string.format("%s: %02d'%02d\"%02d", explainText, minutes, seconds, hundredths)
-        else
-          -- default to count unit
-          itemText = string.format("%s: %.0f", explainText, award.count or 0)
-        end
-      end
-      addSubMenuItem:call(subMenu, itemText, guid, guid, true, false, emptyAction)
-      submenuItemCount = submenuItemCount + 1
-      logDebug(string.format("Added sub menu item: %s (ID: %d)", itemText, award.awardId))
+  -- get how many awards are enabled in config.displayAwardIds
+  local enabledAwardCount = 0
+  for _, award in ipairs(memberAward.awards) do
+    if config.displayAwardIds[tostring(award.awardId)] then
+      enabledAwardCount = enabledAwardCount + 1
     end
+  end
+
+  local guid = newGuid:call(nil)
+  local submenuItemCount = 0
+
+  -- loop through AWARD_LIST and add awards to sub menu
+  for i = 1, #AWARD_LIST do
+    local award = AWARD_LIST[i]
+    local memberAwardData = memberAward.awards[i]
+
+    -- check if award is enabled in config.displayAwardIds
+    if not config.displayAwardIds[tostring(award.awardId)] then
+      logDebug(string.format("Skipping award %s (%d) as it is not enabled in config", award.name, award.awardId))
+      goto continue
+    end
+
+    -- skip if count is 0
+    if not memberAwardData or not memberAwardData.count or memberAwardData.count <= 0 then
+      goto continue
+    end
+
+    local itemText = ""
+
+    -- check if damage award
+    if award.awardId == DAMAGE_AWARD_ID then
+      if not config.displayAwardIds[tostring(DAMAGE_AWARD_ID)] then
+        logDebug("Skipping damage number display for hunter ID: " .. selectedHunterId)
+        goto continue
+      end
+      -- format item text for damage award
+      itemText = string.format("Damage: %.0f (%.2f%%)", memberAward.damage, memberAward.damagePercentage)
+    else
+      -- get the explain text for the award
+      local explainText = award.explain or ""
+      -- limit explain text to SUBMENU_CHAR_LIMIT characters
+      if #explainText > SUBMENU_CHAR_LIMIT then
+        explainText = string.format("%s...", explainText:sub(1, SUBMENU_CHAR_LIMIT))
+      end
+      -- check if time unit
+      if award.unit == AWARD_UNIT.TIME then
+        -- change it to format 00'00"00
+        local totalSeconds = memberAward.awards[i].count or 0
+        local minutes = math.floor(totalSeconds / 60)
+        local seconds = math.floor(totalSeconds % 60)
+        local hundredths = math.floor((totalSeconds - math.floor(totalSeconds)) * 100)
+
+        itemText = string.format("%s: %02d'%02d\"%02d", explainText, minutes, seconds, hundredths)
+      else
+        -- default to count unit
+        itemText = string.format("%s: %.0f", explainText, memberAward.awards[i].count or 0)
+      end
+    end
+
+    -- add item to sub menu with the award name and explain text
+    addSubMenuItem:call(subMenu, itemText, guid, guid, true, false, emptyAction)
+    submenuItemCount = submenuItemCount + 1
+    logDebug(string.format("Added sub menu item: %s (ID: %d)", itemText, award.awardId))
 
     ::continue::
   end
 
   -- if no items were added, add a message indicating no valid awards
-  if submenuItemCount == 0 then
+  if enabledAwardCount == 0 or submenuItemCount == 0 then
     addSubMenuItem:call(subMenu, "No highlights available", guid, guid, true, false, emptyAction)
   end
 
@@ -499,7 +517,6 @@ local function onIndexChange(args)
   -- get SelectedItem field
   local selectedItem = guiInputCtrlFluentScrollList:call("getSelectedItem")
   if not selectedItem then
-    logError("SelectedItem is nil in onIndexChange.")
     return sdk.PreHookResult.CALL_ORIGINAL
   end
 
@@ -539,158 +556,213 @@ local function registerHook(method, pre, post)
   logDebug("Hook registered for method: " .. tostring(method:get_name()))
 end
 
+--- Draw the award table in a separate window
+--- This function is called when the user clicks the button to show the awards window
+local function drawAwardWindow()
+  local openFlag = { true }
+
+  if imgui.begin_window("Better Hunter Highlights - Awards", openFlag, 64) then
+    -- check how many awards are enabled to display
+    local enabledCount = 0
+    for _, award in ipairs(AWARD_LIST) do
+      if config.displayAwardIds[tostring(award.awardId)] then
+        enabledCount = enabledCount + 1
+      end
+    end
+
+    if enabledCount == 0 then
+      imgui.text("No highlights enabled to display")
+      imgui.end_window()
+      return
+    end
+
+    local colCount = 3 + #memberAwardStats
+    local tableFlags = imgui.TableFlags.Borders | imgui.TableFlags.SizingFixedFit | imgui.TableFlags.RowBg |
+        imgui.TableFlags.ScrollY | imgui.TableFlags.Resizable
+
+    if imgui.begin_table("awards_table", colCount, tableFlags) then
+      -- Header setup
+      imgui.table_setup_column("ID")
+      imgui.table_setup_column("Title")
+      imgui.table_setup_column("Description")
+
+      imgui.table_next_row()
+      for i = 1, #memberAwardStats do
+        imgui.table_setup_column(memberAwardStats[i].username or ("Player " .. tostring(i)), nil, MIN_TABLE_COLUMN_WIDTH)
+      end
+
+      imgui.table_headers_row()
+
+      -- loop through AWARD_LIST
+      for awardIndex = 1, #AWARD_LIST do
+        local award = AWARD_LIST[awardIndex]
+        if config.displayAwardIds[tostring(award.awardId)] then
+          imgui.table_next_row()
+
+          imgui.table_set_column_index(0)
+          imgui.text(tostring(awardIndex))
+
+          imgui.table_set_column_index(1)
+          imgui.text(award.name or ("Award " .. tostring(awardIndex)))
+
+          imgui.table_set_column_index(2)
+          imgui.text(award.explain or "")
+
+          -- columns per player
+          for playerIndex = 1, #memberAwardStats do
+            local player = memberAwardStats[playerIndex]
+            local awardData = player.awards and player.awards[awardIndex]
+            local awardListData = AWARD_LIST[awardIndex]
+            imgui.table_set_column_index(2 + playerIndex)
+
+            local count = awardData and awardData.count or 0
+            local valueStr = tostring(count)
+
+            if awardData and awardData.awardId == DAMAGE_AWARD_ID then
+              if config.displayAwardIds[tostring(DAMAGE_AWARD_ID)] == false then
+                valueStr = "<hidden>"
+              else
+                local percent = player.damagePercentage or 0
+                valueStr = string.format("%.0f (%.2f%%)", count, percent)
+              end
+            end
+
+            if awardData and awardListData.unit == AWARD_UNIT.TIME then
+              local totalSeconds = awardData.count
+              local minutes = math.floor(totalSeconds / 60)
+              local seconds = math.floor(totalSeconds % 60)
+              local hundredths = math.floor((totalSeconds - math.floor(totalSeconds)) * 100)
+              valueStr = string.format("%02d'%02d\"%02d", minutes, seconds, hundredths)
+            end
+
+            -- highlight non-zero values
+            if valueStr ~= "0" and valueStr ~= "" and valueStr ~= "00'00\"00" and valueStr ~= "<hidden>" then
+              local colorIndex = (playerIndex - 1) % #COLORS + 1
+              imgui.table_set_bg_color(3, COLORS[colorIndex], imgui.table_get_column_index())
+            end
+
+            imgui.text(valueStr)
+          end
+        end
+      end
+      imgui.end_table()
+    end
+    imgui.end_window()
+  end
+
+  if not openFlag[1] then
+    showAwardWindow = false
+  end
+end
+
+
 -- Draw REFramework UI
 re.on_draw_ui(function()
   if imgui.tree_node("Better Hunter Highlights") then
+    imgui.begin_rect()
+    imgui.spacing()
+
     -- checkbox returns true if clicked
     if imgui.checkbox("Enable Mod", config.enabled) then
       config.enabled = not config.enabled
-      if not config.enabled then
-        config.debug = false -- disable debug mode if mod is disabled
-      end
       logDebug("Config set enabled to " .. tostring(config.enabled))
     end
 
     -- skip if mod disabled
     if not config.enabled then
+      imgui.spacing()
+      imgui.end_rect(2)
       imgui.tree_pop()
       return
     end
 
-
-    -- checkbox to hide damage numbers
-    if imgui.checkbox("Hide Damage Numbers", config.hideDamageNumbers) then
-      config.hideDamageNumbers = not config.hideDamageNumbers
-      logDebug("Config set hideDamageNumbers to " .. tostring(config.hideDamageNumbers))
+    -- checkbox to hide damage numbers (set displayAwardIds[4] to false)
+    local isHidden = not config.displayAwardIds[tostring(DAMAGE_AWARD_ID)]
+    local changed, newHidden = imgui.checkbox("Hide Damage Numbers (Highlight 'Established Hunter')", isHidden)
+    if changed then
+      config.displayAwardIds[tostring(DAMAGE_AWARD_ID)] = not newHidden
+      logDebug("Config set displayAwardIds[" .. DAMAGE_AWARD_ID .. "] to " ..
+        tostring(config.displayAwardIds[tostring(DAMAGE_AWARD_ID)]))
     end
 
-
-    -- checkbox for debug mode
-    if imgui.checkbox("Debug Mode", config.debug) then
-      config.debug = not config.debug
-      logDebug("Config set debug mode to " .. tostring(config.debug))
-    end
-    imgui.indent(20)
-
-    -- Use cached stats if live stats are empty
-    if #memberAwardStats == 0 and config.cache then
-      memberAwardStats = config.cache
-    end
-
-    -- only show button if memberAwardStats has data
-    local buttonText = showAwardWindow and "Close Hunter Highlights Window" or "Show Hunter Highlights Window"
+    -- use cached stats if live stats are empty and only show button if there's data
+    memberAwardStats = (#memberAwardStats == 0 and config.cache) or memberAwardStats
     if #memberAwardStats > 0 then
+      local buttonText = showAwardWindow and "Close Hunter Highlights Overview" or "Show Hunter Highlights Overview"
       if imgui.button(buttonText) then
         showAwardWindow = not showAwardWindow
       end
-    else
-      imgui.text("No hunter highlights data available, complete a multiplayer quest first.")
     end
 
-    -- show button to clear cached stats
-    if imgui.button("Clear Cached Data") then
+    -- customize which highlights to show
+    if imgui.tree_node("Customize which highlights to show") then
+      -- buttons to toggle selection
+      local enableAll = imgui.button("Select all")
       imgui.same_line()
-      memberAwardStats = {}
-      config.cache = {}
-      saveConfig()
-      logDebug("Cached stats cleared")
+      local disableAll = imgui.button("Deselect all")
+      if enableAll then
+        for _, award in ipairs(AWARD_LIST) do
+          config.displayAwardIds[tostring(award.awardId)] = true
+          logDebug(string.format("Config set displayAwardIds[%s] to true", tostring(award.awardId)))
+        end
+      end
+      if disableAll then
+        for _, award in ipairs(AWARD_LIST) do
+          config.displayAwardIds[tostring(award.awardId)] = false
+          logDebug(string.format("Config set displayAwardIds[%s] to false", tostring(award.awardId)))
+        end
+      end
+      -- loop through AWARD_LIST and create checkboxes for each award
+      for _, award in ipairs(AWARD_LIST) do
+        local awardIdStr = tostring(award.awardId)
+        local changed, newValue = imgui.checkbox(string.format("%s (%s)", award.name, award.explain),
+          config.displayAwardIds[awardIdStr])
+        if changed then
+          config.displayAwardIds[awardIdStr] = newValue
+          logDebug(string.format("Config set displayAwardIds[%s] to %s", awardIdStr, tostring(newValue)))
+        end
+      end
+      imgui.tree_pop()
     end
 
-    imgui.unindent(20)
+    -- developer options
+    if imgui.tree_node("Developer Options") then
+      -- debug mode
+      if imgui.checkbox("Debug Mode", config.debug) then
+        config.debug = not config.debug
+        logDebug("Config set debug mode to " .. tostring(config.debug))
+      end
 
+      -- clear cached stats
+      local clearClicked = imgui.button("Clear cached highlights data")
+      imgui.same_line()
+      local resetClicked = imgui.button("Reset settings to default")
 
+      if clearClicked then
+        memberAwardStats = {}
+        config.cache = {}
+        saveConfig()
+        logDebug("Cleared cached highlights data")
+      end
+
+      if resetClicked then
+        --- Save default config
+        saveDefaultConfig()
+        logDebug("Config reset to default settings")
+      end
+
+      imgui.tree_pop()
+    end
+
+    imgui.spacing()
+    imgui.end_rect(2)
+    imgui.spacing()
     imgui.tree_pop()
   end
 
-
+  -- Draw the award table if the window is open
   if showAwardWindow then
-    local openFlag = { true }
-
-    if imgui.begin_window("Better Hunter Highlights - Awards", openFlag, 64) then
-      local hasValidData = memberAwardStats and #memberAwardStats > 0 and memberAwardStats[1].awards
-
-      if not hasValidData then
-        imgui.text("No award data available.")
-      else
-        local colCount = 3 + #memberAwardStats
-        local tableFlags = imgui.TableFlags.Borders | imgui.TableFlags.SizingFixedFit | imgui.TableFlags.RowBg |
-            imgui.TableFlags.ScrollY | imgui.TableFlags.Sortable | imgui.TableFlags.Resizable
-
-        if imgui.begin_table("awards_table", colCount, tableFlags) then
-          -- Header setup
-          imgui.table_setup_column("ID")
-          imgui.table_setup_column("Title")
-          imgui.table_setup_column("Description")
-
-          imgui.table_next_row()
-          for i = 1, #memberAwardStats do
-            imgui.table_setup_column(memberAwardStats[i].username or ("Player " .. tostring(i)), nil, 130)
-          end
-
-          imgui.table_headers_row()
-
-          for awardIndex = 1, #(memberAwardStats[1].awards or {}) do
-            local firstAward = memberAwardStats[1].awards[awardIndex]
-            if firstAward then
-              imgui.table_next_row()
-
-              imgui.table_set_column_index(0)
-              imgui.text(tostring(awardIndex))
-
-              imgui.table_set_column_index(1)
-              imgui.text(firstAward.name or ("Award " .. tostring(awardIndex)))
-
-              imgui.table_set_column_index(2)
-              imgui.text(firstAward.explain or "")
-
-              -- columns per player
-              for playerIndex = 1, #memberAwardStats do
-                local player = memberAwardStats[playerIndex]
-                local award = player.awards and player.awards[awardIndex]
-                imgui.table_set_column_index(2 + playerIndex)
-
-                local count = award and award.count or 0
-                local valueStr = tostring(count)
-
-                -- add percentage if it's the damage award
-                if award and award.awardId == DAMAGE_AWARD_ID then
-                  -- check if config.hideDamageNumbers is enabled and skip this iteration if so
-                  if config.hideDamageNumbers then
-                    valueStr = "<hidden>"
-                  else
-                    local percent = player.damagePercentage or 0
-                    valueStr = string.format("%.0f (%.2f%%)", count, percent)
-                  end
-                end
-
-                if award.unit == AWARD_UNIT.TIME then
-                  -- change it to format 00'00"00
-                  local totalSeconds = award.count
-                  local minutes = math.floor(totalSeconds / 60)
-                  local seconds = math.floor(totalSeconds % 60)
-                  local hundredths = math.floor((totalSeconds - math.floor(totalSeconds)) * 100)
-                  valueStr = string.format("%02d'%02d\"%02d", minutes, seconds, hundredths)
-                end
-
-                -- highlight non-zero values
-                if valueStr ~= "0" and valueStr ~= "" and valueStr ~= "00'00\"00" and valueStr ~= "<hidden>" then
-                  imgui.table_set_bg_color(3, COLORS[playerIndex % #COLORS], imgui.table_get_column_index())
-                  imgui.text(valueStr)
-                else
-                  imgui.text(valueStr)
-                end
-              end
-            end
-          end
-          imgui.end_table()
-        end
-      end
-      imgui.end_window()
-    end
-
-    if not openFlag[1] then
-      showAwardWindow = false
-    end
+    drawAwardWindow()
   end
 end)
 

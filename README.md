@@ -21,3 +21,6 @@
 ## Table
 
 ![table](./assets/table.png)
+
+## REFramework Settings
+![settings](./assets/reframework.png)
