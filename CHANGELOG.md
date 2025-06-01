@@ -1,3 +1,10 @@
+# [1.4.0](https://github.com/thieleju/mhws-better-hunter-highlights/compare/v1.3.5...v1.4.0) (2025-06-01)
+
+
+### Features
+
+* rework reframework ui and added option to customize which highlights to show ([a89ad61](https://github.com/thieleju/mhws-better-hunter-highlights/commit/a89ad61d647bb08b40389073e078e3463c08a524))
+
 ## [1.3.5](https://github.com/thieleju/mhws-better-hunter-highlights/compare/v1.3.4...v1.3.5) (2025-05-28)
 
 
