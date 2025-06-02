@@ -4,6 +4,7 @@
 - REFramework UI table with detailed Hunter Highlight information
 - Hunter Highlights added to the quest result sub menus
 - Option to hide the damage numbers (Reward 'Established Hunter')
+- Settings to toggle each highlight on or off
 
 ## Requirements
 - Requires [REFramework](https://www.nexusmods.com/monsterhunterwilds/mods/93)
