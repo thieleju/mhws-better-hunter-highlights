@@ -10,16 +10,12 @@
 local guidType                                = sdk.find_type_definition("System.Guid")
 local cQuestRewardType                        = sdk.find_type_definition("app.cQuestReward")
 local cQuestFlowParamType                     = sdk.find_type_definition("app.cQuestFlowParam")
--- local questDefType                            = sdk.find_type_definition("app.QuestDef")
--- local messageUtilType                         = sdk.find_type_definition("app.MessageUtil")
+local questDefType                            = sdk.find_type_definition("app.QuestDef")
+local messageUtilType                         = sdk.find_type_definition("app.MessageUtil")
 local subMenuType                             = sdk.find_type_definition("app.cGUISubMenuInfo")
 local guiManagerType                          = sdk.find_type_definition("app.GUIManager")
 local guiInputCtrlFluentScrollListType        = sdk.find_type_definition(
   "ace.cGUIInputCtrl_FluentScrollList`2<app.GUIID.ID,app.GUIFunc.TYPE>")
--- local gui070003PartsList                      = sdk.find_type_definition("app.GUI070003PartsList")
--- local guiBaseAppType                          = sdk.find_type_definition("app.GUIBaseApp")
--- local guiUtilAppType                          = sdk.find_type_definition("app.GUIUtilApp")
--- local gui040301                               = sdk.find_type_definition("app.GUI040301")
 local panelType                               = sdk.typeof("via.gui.Panel")
 local textType                                = sdk.typeof("via.gui.Text")
 
@@ -34,20 +30,15 @@ local guiInputCtrlFluentScrollListIndexChange = guiInputCtrlFluentScrollListType
 local newGuid                                 = guidType:get_method("NewGuid")
 local addSubMenuItem                          = subMenuType:get_method(
   "addItem(System.String, System.Guid, System.Guid, System.Boolean, System.Boolean, System.Action)")
--- local getAwardNameHelper                      = questDefType:get_method("Name(app.QuestDef.AwardID)")
--- local getAwardExplainHelper                   = questDefType:get_method("Explain(app.QuestDef.AwardID)")
--- local getAwardThresholdHelper                 = questDefType:get_method("Threshold(app.QuestDef.AwardID)")
--- local getAwardUnitHelper                      = questDefType:get_method("Unit(app.QuestDef.AwardID)")
--- local getAwardWeightHelper                    = questDefType:get_method("Weight(app.QuestDef.AwardID)")
--- local getTextHelper                           = messageUtilType:get_method("getText(System.Guid, System.Int32)")
--- local setMessageApp                           = guiBaseAppType:get_method(
---   "setMessageApp(via.gui.Text, app.MessageDef.DIRECT, System.String, System.Func`2<System.String,System.String>)")
--- local setTextColor                            = guiUtilAppType:get_method("setTextColor")
--- local getText                                 = messageUtilType:get_method("getText(System.Guid, System.Int32)")
+local getAwardNameHelper                      = questDefType:get_method("Name(app.QuestDef.AwardID)")
+local getAwardExplainHelper                   = questDefType:get_method("Explain(app.QuestDef.AwardID)")
+local getAwardUnitHelper                      = questDefType:get_method("Unit(app.QuestDef.AwardID)")
+local getTextHelper                           = messageUtilType:get_method("getText(System.Guid, System.Int32)")
 
 -- variables
 local selectedHunterId                        = ""
 local memberAwardStats                        = {}
+local awardList                               = {}
 local showAwardWindow                         = false
 local config                                  = { enabled = true, debug = false, cache = {}, displayAwardIds = {} }
 
@@ -59,39 +50,7 @@ local SUBMENU_CHAR_LIMIT                      = 35
 local MIN_TABLE_COLUMN_WIDTH                  = 130
 local AWARD_UNIT                              = { COUNT = 0, TIME = 1, NONE = 2 }
 local SESSION_TYPE                            = { LOBBY = 1, QUEST = 2, LINK = 3 }
-local AWARD_LIST                              = {
-  { awardId = 0,  name = "Support All-Star",          explain = "Buffs and Heals Applied",                                                    unit = AWARD_UNIT.COUNT },
-  { awardId = 1,  name = "Ailment Master",            explain = "Traps Tripped/Ailments Afflicted",                                           unit = AWARD_UNIT.COUNT },
-  { awardId = 2,  name = "Dizzy Pro",                 explain = "Stuns Inflicted",                                                            unit = AWARD_UNIT.COUNT },
-  { awardId = 3,  name = "Target Destroyer",          explain = "Parts Broken",                                                               unit = AWARD_UNIT.COUNT },
-  { awardId = 4,  name = "Established Hunter",        explain = "Damage to Main Target Large Monster",                                        unit = AWARD_UNIT.NONE },
-  { awardId = 5,  name = "Master Mounter",            explain = "Successful Mounts",                                                          unit = AWARD_UNIT.COUNT },
-  { awardId = 6,  name = "Treasure Hunter",           explain = "Rare Items Collected",                                                       unit = AWARD_UNIT.COUNT },
-  { awardId = 7,  name = "Field Researcher",          explain = "Tracks and Traces Examined",                                                 unit = AWARD_UNIT.COUNT },
-  { awardId = 8,  name = "Slinger Sniper",            explain = "Slinger Fired",                                                              unit = AWARD_UNIT.COUNT },
-  { awardId = 9,  name = "Survival Expert",           explain = "Endemic Life/Plant Life Used",                                               unit = AWARD_UNIT.COUNT },
-  { awardId = 10, name = "Tool Specialist",           explain = "Specialized Tool Usage Time",                                                unit = AWARD_UNIT.TIME },
-  { awardId = 11, name = "BBQ King",                  explain = "Meat Cooked",                                                                unit = AWARD_UNIT.COUNT },
-  { awardId = 12, name = "Master Angler",             explain = "Successful Fishing Attempts",                                                unit = AWARD_UNIT.COUNT },
-  { awardId = 13, name = "Beast Master",              explain = "Endemic Life Captured",                                                      unit = AWARD_UNIT.COUNT },
-  { awardId = 14, name = "Stealth Hunter",            explain = "Successful Stealth Attempts",                                                unit = AWARD_UNIT.COUNT },
-  { awardId = 15, name = "Gathering Maniac",          explain = "Times Gathered",                                                             unit = AWARD_UNIT.COUNT },
-  { awardId = 16, name = "Item Addict",               explain = "Items Used",                                                                 unit = AWARD_UNIT.COUNT },
-  { awardId = 17, name = "Obsessed Observer",         explain = "Records in Photo Mode",                                                      unit = AWARD_UNIT.COUNT },
-  { awardId = 18, name = "Hit 'Em Where It Hurts!",   explain = "Number of Focus Strikes on Wounds",                                          unit = AWARD_UNIT.COUNT },
-  { awardId = 19, name = "Beautiful Bombardier",      explain = "Large Barrel Bomb Hits",                                                     unit = AWARD_UNIT.COUNT },
-  { awardId = 20, name = "Social Butterfly",          explain = "Times Communicated",                                                         unit = AWARD_UNIT.COUNT },
-  { awardId = 21, name = "Small Game Monster Hunter", explain = "Small Monsters Slain",                                                       unit = AWARD_UNIT.COUNT },
-  { awardId = 22, name = "Slinger Savant",            explain = "Times Slinger ammo hit a monster's weak point or caused a special reaction", unit = AWARD_UNIT.COUNT },
-  { awardId = 23, name = "Seikret Sidestep",          explain = "Timed Evaded on a Seikret",                                                  unit = AWARD_UNIT.COUNT },
-  { awardId = 24, name = "Perfect Counters",          explain = "Offset Attacks",                                                             unit = AWARD_UNIT.COUNT },
-  { awardId = 25, name = "Glide Master",              explain = "Time Spent Gliding on Seikret",                                              unit = AWARD_UNIT.TIME },
-  { awardId = 26, name = "Dual Wielder",              explain = "Times weapon was changed using the Seikret's weapon sling",                  unit = AWARD_UNIT.COUNT },
-  { awardId = 27, name = "Assassination",             explain = "Sneak Attacks",                                                              unit = AWARD_UNIT.COUNT },
-  { awardId = 28, name = "Weak Point",                explain = "Times a special attack hit a weak point",                                    unit = AWARD_UNIT.COUNT },
-  { awardId = 29, name = "Clasher",                   explain = "Power Clashes",                                                              unit = AWARD_UNIT.COUNT },
-}
-
+local AWARD_NUM_MAX                           = 29
 
 -- Log debug message
 local function logDebug(message)
@@ -114,7 +73,7 @@ end
 --- Save default config
 local function saveDefaultConfig()
   config = { enabled = true, debug = false, cache = {}, displayAwardIds = {} }
-  for _, award in ipairs(AWARD_LIST) do
+  for _, award in ipairs(awardList) do
     config.displayAwardIds[tostring(award.awardId)] = true
   end
   saveConfig()
@@ -136,7 +95,7 @@ local function loadConfig()
     end
     if type(loaded.displayAwardIds) ~= "table" then
       loaded.displayAwardIds = {}
-      for _, award in ipairs(AWARD_LIST) do
+      for _, award in ipairs(awardList) do
         loaded.displayAwardIds[tostring(award.awardId)] = true
       end
     end
@@ -170,25 +129,30 @@ local function roundToTwoDecimalPlaces(value)
   return math.floor(value * 100 + 0.5) / 100
 end
 
---- Prints member award stats and damage to main target table
-local function printMemberAwardStats()
-  logDebug(" --- Player Awards ---")
-  -- Print all award stats per member
-  for _, data in pairs(memberAwardStats) do
-    local awardsStr = {}
-    for _, award in ipairs(data.awards) do
-      table.insert(awardsStr, string.format("%s: %.0f", "TODO NAME", award.count))
-    end
-    logDebug(string.format("  -> %s(%d): %s", data.username or "unknown", data.memberIndex or -1,
-      table.concat(awardsStr, ", ")))
-  end
+--- Updates awardList with localized names and explanations
+local function updateAwardList()
+  for i = 0, AWARD_NUM_MAX do
+    -- get localized name and explaination for each award
+    local name = safeCall(function()
+      local guid = getAwardNameHelper:call(nil, i)
+      return getTextHelper:call(nil, guid, 0)
+    end)
+    local explain = safeCall(function()
+      local guid = getAwardExplainHelper:call(nil, i)
+      local exp = getTextHelper:call(nil, guid, 0)
+      return exp:gsub("\r\n", " "):gsub("\n", " ")
+    end)
+    local unit = safeCall(function()
+      return getAwardUnitHelper:call(nil, i)
+    end)
+    awardList[i + 1] = {
+      awardId = i,
+      name = name,
+      explain = explain,
+      unit = unit
+    }
 
-  logDebug(" --- Damage to Main Target Large Monster ---")
-
-  -- Print each player's damage and percentage
-  for _, data in ipairs(memberAwardStats) do
-    logDebug(string.format("  -> %s(%d): %.0f dmg (%.2f%%)", data.username or "unknown", data.memberIndex or -1,
-      data.damage, data.damagePercentage))
+    logDebug(string.format("Award %d: %s - %s (Unit: %d)", i, name or "N/A", explain or "N/A", unit or -1))
   end
 end
 
@@ -237,8 +201,8 @@ local function onSetSharedQuestAwardInfo(args)
     }
     table.insert(awardsArray, meta0)
 
-    -- loop through AWARD_LIST and fill awardsArray
-    for i = 2, #AWARD_LIST do
+    -- loop through awardList and fill awardsArray
+    for i = 2, #awardList do
       table.insert(awardsArray, {
         awardId = i - 1,
         count = packet[string.format("award%02d", i)] or 0,
@@ -356,11 +320,6 @@ local function onEnterQuestReward(args)
   logDebug(string.format("Final award01DataSum: [%d, %d, %d, %d]", award01DataSum[1], award01DataSum[2],
     award01DataSum[3], award01DataSum[4]))
 
-  -- Print all member award stats with dmg table
-  if config.debug then
-    printMemberAwardStats()
-  end
-
   -- Cache the latest memberAwardStats
   config.cache = memberAwardStats
   saveConfig()
@@ -435,9 +394,9 @@ local function onRequestSubMenu(args)
   local guid = newGuid:call(nil)
   local submenuItemCount = 0
 
-  -- loop through AWARD_LIST and add awards to sub menu
-  for i = 1, #AWARD_LIST do
-    local award = AWARD_LIST[i]
+  -- loop through awardList and add awards to sub menu
+  for i = 1, #awardList do
+    local award = awardList[i]
     local memberAwardData = memberAward.awards[i]
 
     -- check if award is enabled in config.displayAwardIds
@@ -564,7 +523,7 @@ local function drawAwardWindow()
   if imgui.begin_window("Better Hunter Highlights - Awards", openFlag, 64) then
     -- check how many awards are enabled to display
     local enabledCount = 0
-    for _, award in ipairs(AWARD_LIST) do
+    for _, award in ipairs(awardList) do
       if config.displayAwardIds[tostring(award.awardId)] then
         enabledCount = enabledCount + 1
       end
@@ -593,9 +552,9 @@ local function drawAwardWindow()
 
       imgui.table_headers_row()
 
-      -- loop through AWARD_LIST
-      for awardIndex = 1, #AWARD_LIST do
-        local award = AWARD_LIST[awardIndex]
+      -- loop through awardList
+      for awardIndex = 1, #awardList do
+        local award = awardList[awardIndex]
         if config.displayAwardIds[tostring(award.awardId)] then
           imgui.table_next_row()
 
@@ -612,7 +571,7 @@ local function drawAwardWindow()
           for playerIndex = 1, #memberAwardStats do
             local player = memberAwardStats[playerIndex]
             local awardData = player.awards and player.awards[awardIndex]
-            local awardListData = AWARD_LIST[awardIndex]
+            local awardListData = awardList[awardIndex]
             imgui.table_set_column_index(2 + playerIndex)
 
             local count = awardData and awardData.count or 0
@@ -701,19 +660,19 @@ re.on_draw_ui(function()
       imgui.same_line()
       local disableAll = imgui.button("Deselect all")
       if enableAll then
-        for _, award in ipairs(AWARD_LIST) do
+        for _, award in ipairs(awardList) do
           config.displayAwardIds[tostring(award.awardId)] = true
           logDebug(string.format("Config set displayAwardIds[%s] to true", tostring(award.awardId)))
         end
       end
       if disableAll then
-        for _, award in ipairs(AWARD_LIST) do
+        for _, award in ipairs(awardList) do
           config.displayAwardIds[tostring(award.awardId)] = false
           logDebug(string.format("Config set displayAwardIds[%s] to false", tostring(award.awardId)))
         end
       end
-      -- loop through AWARD_LIST and create checkboxes for each award
-      for _, award in ipairs(AWARD_LIST) do
+      -- loop through awardList and create checkboxes for each award
+      for _, award in ipairs(awardList) do
         local awardIdStr = tostring(award.awardId)
         local changed, newValue = imgui.checkbox(string.format("%s (%s)", award.name, award.explain),
           config.displayAwardIds[awardIdStr])
@@ -788,5 +747,9 @@ registerHook(guiManagerRequestSubMenu, onRequestSubMenu, nil)
 
 -- Called when a fluent scroll list index changes, used to update the selected index in the hunter highlights menu
 registerHook(guiInputCtrlFluentScrollListIndexChange, onIndexChange, nil)
+
+
+-- Update awardList with localized names and explanations
+updateAwardList()
 
 logDebug("Better Hunter Highlights initialized successfully!")
