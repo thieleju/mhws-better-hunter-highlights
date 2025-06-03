@@ -1,3 +1,10 @@
+## [1.4.1](https://github.com/thieleju/mhws-better-hunter-highlights/compare/v1.4.0...v1.4.1) (2025-06-03)
+
+
+### Bug Fixes
+
+* use users language for award name and description ([9fb4a1f](https://github.com/thieleju/mhws-better-hunter-highlights/commit/9fb4a1f54b2d6a491471c7d4e89b2dfe00ec9347))
+
 # [1.4.0](https://github.com/thieleju/mhws-better-hunter-highlights/compare/v1.3.5...v1.4.0) (2025-06-01)
 
 
