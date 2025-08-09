@@ -1,3 +1,10 @@
+## [1.4.2](https://github.com/thieleju/mhws-better-hunter-highlights/compare/v1.4.1...v1.4.2) (2025-08-09)
+
+
+### Bug Fixes
+
+* fix invalid stats on member leave ([9fc9b18](https://github.com/thieleju/mhws-better-hunter-highlights/commit/9fc9b183c5cf4ab8f990967ad821e5b53384deeb))
+
 ## [1.4.1](https://github.com/thieleju/mhws-better-hunter-highlights/compare/v1.4.0...v1.4.1) (2025-06-03)
 
 
